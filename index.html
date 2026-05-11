@@ -87,6 +87,13 @@ textarea{resize:vertical;min-height:72px;}
 .modal-footer{padding:14px 24px;border-top:1px solid var(--border);display:flex;gap:9px;justify-content:flex-end;position:sticky;bottom:0;background:var(--surface);}
 .equip-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:13px;}
 .equip-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:16px;transition:all .2s;box-shadow:0 1px 3px rgba(20,28,55,.04);}
+/* Card de GRUPO — ocupa linha inteira do grid pra agrupar visualmente os items internos */
+.equip-group{grid-column:1 / -1;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);box-shadow:0 1px 3px rgba(20,28,55,.04);overflow:hidden;}
+.equip-group-header{display:flex;align-items:center;gap:12px;padding:14px 18px;cursor:pointer;border-left:4px solid var(--accent);background:linear-gradient(to right,rgba(245,166,35,.04),transparent 40%);transition:background .18s;}
+.equip-group-header:hover{background:linear-gradient(to right,rgba(245,166,35,.08),transparent 40%);}
+.equip-group-title{font-family:'Syne',sans-serif;font-size:16px;font-weight:700;color:var(--text);}
+.equip-group-body{padding:14px 18px;background:var(--surface2);border-top:1px solid var(--border);display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:13px;}
+.grp-arrow{display:inline-block;font-size:14px;transition:transform .18s;}
 .equip-card:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 4px 16px rgba(245,166,35,.1);}
 .equip-icon{font-size:30px;margin-bottom:8px;}
 .equip-name{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;margin-bottom:5px;}
@@ -270,6 +277,8 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,166,35,.045)!importan
 
   /* Cards de equipamentos: 1 por linha */
   .equip-grid{grid-template-columns:1fr!important;}
+  .equip-group-body{grid-template-columns:1fr!important;padding:12px 14px!important;}
+  .equip-group-header{padding:12px 14px!important;}
 
   /* Card-header empilha botão embaixo */
   .card-header{flex-wrap:wrap;gap:8px;}
@@ -442,7 +451,7 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,166,35,.045)!importan
   <div class="page-header"><h2>Equipamentos</h2><p>Catálogo e gestão dos equipamentos para aluguel</p></div>
   <div class="search-row">
     <input class="search-input" placeholder="Buscar equipamento..." oninput="renderEquipamentos(this.value)">
-    <button class="btn btn-primary" onclick="openModal('modal-equip')">+ Novo Equipamento</button>
+    <button class="btn btn-primary" onclick="popularGruposDatalist();openModal('modal-equip')">+ Novo Equipamento</button>
   </div>
   <div class="equip-grid" id="equip-grid"></div>
 </div>
@@ -606,6 +615,7 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,166,35,.045)!importan
         <div class="form-group"><label>VALOR SEMANAL (R$)</label><input id="equip-semanal" type="number" min="0" step="0.01" placeholder="0,00"></div>
         <div class="form-group"><label>VALOR MENSAL (R$)</label><input id="equip-mensal" type="number" min="0" step="0.01" placeholder="0,00"></div>
         <div class="form-group"><label>STATUS</label><select id="equip-status"><option value="disponivel">Disponível</option><option value="manutencao">Em Manutenção</option><option value="inativo">Inativo</option></select></div>
+        <div class="form-group full"><label>GRUPO <span style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(opcional — equipamentos com o mesmo grupo aparecem agrupados no catálogo e no estoque)</span></label><input id="equip-grupo" list="grupos-existentes" placeholder="Ex: Betoneiras 400L"><datalist id="grupos-existentes"></datalist></div>
         <div class="form-group full"><label>DESCRIÇÃO / OBSERVAÇÕES</label><textarea id="equip-desc" placeholder="Detalhes técnicos, capacidade..."></textarea></div>
       </div>
     </div>
@@ -801,7 +811,7 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSess
 
 // Mapeamento JS<->DB: como o banco usa snake_case e o JS usa camelCase, normalizamos
 const FIELD_MAP={
-  equipamentos:{toDb:o=>({id:o.id,nome:o.nome,cat:o.cat,qty:o.qty,em_uso:o.emUso||0,manutencao:o.manutencao||0,diario:o.diario,semanal:o.semanal,mensal:o.mensal,unidade:o.unidade,status:o.status,descricao:o.desc||''}),fromDb:r=>({id:r.id,nome:r.nome,cat:r.cat,qty:r.qty,emUso:r.em_uso,manutencao:r.manutencao,diario:Number(r.diario),semanal:Number(r.semanal),mensal:Number(r.mensal),unidade:r.unidade,status:r.status,desc:r.descricao||''})},
+  equipamentos:{toDb:o=>({id:o.id,nome:o.nome,cat:o.cat,qty:o.qty,em_uso:o.emUso||0,manutencao:o.manutencao||0,diario:o.diario,semanal:o.semanal,mensal:o.mensal,unidade:o.unidade,status:o.status,descricao:o.desc||'',grupo:o.grupo||null}),fromDb:r=>({id:r.id,nome:r.nome,cat:r.cat,qty:r.qty,emUso:r.em_uso,manutencao:r.manutencao,diario:Number(r.diario),semanal:Number(r.semanal),mensal:Number(r.mensal),unidade:r.unidade,status:r.status,desc:r.descricao||'',grupo:r.grupo||''})},
   clientes:{toDb:o=>({id:o.id,nome:o.nome,tipo:o.tipo,doc:o.doc,rg:o.rg,tel:o.tel,email:o.email,endereco:o.end,obs:o.obs}),fromDb:r=>({id:r.id,nome:r.nome,tipo:r.tipo,doc:r.doc,rg:r.rg,tel:r.tel,email:r.email,end:r.endereco,obs:r.obs})},
   contratos:{toDb:o=>({id:o.id,cliente_id:o.clienteId,inicio:o.inicio,fim:o.fim||null,pagamento:o.pagamento,status:o.status,local:o.local,itens:o.itens||[],total:o.total||0,pago:!!o.pago,obs:o.obs,renovado_de:o.renovadoDe||null}),fromDb:r=>({id:r.id,clienteId:r.cliente_id,inicio:r.inicio,fim:r.fim,pagamento:r.pagamento,status:r.status,local:r.local,itens:r.itens||[],total:Number(r.total),pago:r.pago,obs:r.obs,criadoEm:r.created_at,renovadoDe:r.renovado_de})},
   manutencoes:{toDb:o=>({id:o.id,equip_id:o.equipId,data:o.data,tipo:o.tipo,valor:o.valor||0,responsavel:o.resp,descricao:o.desc,revisao_concluida:!!o.revisaoConcluida}),fromDb:r=>({id:r.id,equipId:r.equip_id,data:r.data,tipo:r.tipo,valor:Number(r.valor),resp:r.responsavel,desc:r.descricao,revisaoConcluida:r.revisao_concluida})},
@@ -974,12 +984,15 @@ function hoje(){return new Date().toISOString().split('T')[0];}
 // ========================
 function renderEquipamentos(q=''){
   let eq=DB.get('equipamentos');
-  if(q)eq=eq.filter(e=>e.nome.toLowerCase().includes(q.toLowerCase())||e.cat.toLowerCase().includes(q.toLowerCase()));
+  if(q){const qq=q.toLowerCase();eq=eq.filter(e=>e.nome.toLowerCase().includes(qq)||e.cat.toLowerCase().includes(qq)||(e.grupo||'').toLowerCase().includes(qq));}
   const g=document.getElementById('equip-grid');
   if(!eq.length){g.innerHTML='<div class="empty-state"><div class="big" style="font-size:38px;opacity:.3">—</div><p>Nenhum equipamento cadastrado</p></div>';return;}
-  // Último registro de manutenção por equipamento
   const manuts=DB.get('manutencoes');
-  g.innerHTML=eq.map(e=>{
+  // Separa em itens com grupo (pra agrupar) e sem grupo (renderiza individual)
+  const porGrupo={};const semGrupo=[];
+  eq.forEach(e=>{if(e.grupo&&e.grupo.trim())(porGrupo[e.grupo]=porGrupo[e.grupo]||[]).push(e);else semGrupo.push(e);});
+  // Gera HTML pra cada equipamento individual (card padrão)
+  const renderIndividual=e=>{
     const ms=manuts.filter(m=>m.equipId==e.id&&m.revisaoConcluida).sort((a,b)=>b.data.localeCompare(a.data));
     const ultima=ms[0];
     let manutBadge='';
@@ -1001,23 +1014,80 @@ function renderEquipamentos(q=''){
         <button class="btn btn-danger btn-sm" onclick="delEquipConfirm(${e.id})">Excluir</button>
       </div>
     </div>`;
-  }).join('');
+  };
+  // Gera HTML pra cada grupo (card de grupo + expansível com cards individuais dentro)
+  const renderGrupo=(nome,items)=>{
+    const total=items.reduce((s,e)=>s+(e.qty||0),0);
+    const emUso=items.reduce((s,e)=>s+(e.emUso||0),0);
+    const manut=items.reduce((s,e)=>s+(e.manutencao||0),0);
+    const disp=Math.max(0,total-emUso-manut);
+    const cat=items[0].cat;
+    // Conta avisos de revisão dentro do grupo
+    let avisos=0,vencidas=0;
+    items.forEach(e=>{
+      const ms=manuts.filter(m=>m.equipId==e.id&&m.revisaoConcluida).sort((a,b)=>b.data.localeCompare(a.data));
+      if(ms[0]){const dias=diasAte(addDias(ms[0].data,180));if(dias<=0)vencidas++;else if(dias<=30)avisos++;}
+    });
+    const badgesAvisos=`${vencidas?`<span class="badge badge-red">${vencidas} revisão(ões) vencidas</span> `:''}${avisos?`<span class="badge badge-warning">${avisos} revisão(ões) próximas</span>`:''}`;
+    const gid='grp-'+nome.replace(/[^a-zA-Z0-9]/g,'_');
+    const detalhesHTML=items.map(renderIndividual).join('');
+    return`<div class="equip-group" data-group="${nome}">
+      <div class="equip-group-header" onclick="toggleGrupo('${gid}')">
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+            <span class="equip-group-title">${nome}</span>
+            <span class="badge badge-blue">${cat}</span>
+            ${badgesAvisos}
+          </div>
+          <div style="font-size:12.5px;color:var(--muted)">
+            <b style="color:var(--text)">${items.length}</b> ${items.length>1?'unidades':'unidade'} ·
+            <b style="color:var(--success)">${disp}</b> ${disp>1?'disponíveis':'disponível'} ·
+            <b style="color:var(--accent2)">${emUso}</b> em uso${manut?` · <b style="color:var(--danger)">${manut}</b> em manutenção`:''}
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-sm" type="button" onclick="event.stopPropagation();toggleGrupo('${gid}')">
+          <span class="grp-arrow" id="${gid}-arrow">▾</span>
+        </button>
+      </div>
+      <div class="equip-group-body" id="${gid}" style="display:none">${detalhesHTML}</div>
+    </div>`;
+  };
+  // Monta o HTML final: primeiro grupos (ordenados), depois individuais
+  const html=[
+    ...Object.keys(porGrupo).sort().map(nome=>renderGrupo(nome,porGrupo[nome])),
+    ...semGrupo.map(renderIndividual)
+  ].join('');
+  g.innerHTML=html;
+}
+function toggleGrupo(id){
+  const b=document.getElementById(id);const a=document.getElementById(id+'-arrow');
+  if(!b)return;
+  const open=b.style.display==='none';
+  b.style.display=open?'':'none';
+  if(a)a.textContent=open?'▴':'▾';
 }
 function salvarEquip(){
   const id=document.getElementById('equip-id').value;
-  const obj={id:id?parseInt(id):DB.nextId('equipamentos'),nome:document.getElementById('equip-nome').value.trim(),cat:document.getElementById('equip-cat').value,qty:parseInt(document.getElementById('equip-qty').value)||1,emUso:id?(DB.get('equipamentos').find(e=>e.id==id)||{}).emUso||0:0,manutencao:0,diario:parseFloat(document.getElementById('equip-diario').value)||0,semanal:parseFloat(document.getElementById('equip-semanal').value)||0,mensal:parseFloat(document.getElementById('equip-mensal').value)||0,unidade:document.getElementById('equip-unidade').value||'un',status:document.getElementById('equip-status').value,desc:document.getElementById('equip-desc').value};
+  const obj={id:id?parseInt(id):DB.nextId('equipamentos'),nome:document.getElementById('equip-nome').value.trim(),cat:document.getElementById('equip-cat').value,qty:parseInt(document.getElementById('equip-qty').value)||1,emUso:id?(DB.get('equipamentos').find(e=>e.id==id)||{}).emUso||0:0,manutencao:0,diario:parseFloat(document.getElementById('equip-diario').value)||0,semanal:parseFloat(document.getElementById('equip-semanal').value)||0,mensal:parseFloat(document.getElementById('equip-mensal').value)||0,unidade:document.getElementById('equip-unidade').value||'un',status:document.getElementById('equip-status').value,desc:document.getElementById('equip-desc').value,grupo:document.getElementById('equip-grupo').value.trim()};
   if(!obj.nome){alert('Informe o nome.');return;}
   let eq=DB.get('equipamentos');if(id)eq=eq.map(e=>e.id==id?obj:e);else eq.push(obj);
   DB.set('equipamentos',eq);closeModal('modal-equip');resetEquipForm();renderEquipamentos();
 }
 function editEquip(id){
+  popularGruposDatalist();
   const e=DB.get('equipamentos').find(x=>x.id==id);if(!e)return;
   document.getElementById('equip-id').value=e.id;
-  ['nome','cat','qty','diario','semanal','mensal','unidade','status','desc'].forEach(f=>document.getElementById('equip-'+f).value=e[f]||'');
+  ['nome','cat','qty','diario','semanal','mensal','unidade','status','desc','grupo'].forEach(f=>document.getElementById('equip-'+f).value=e[f]||'');
   document.getElementById('equip-modal-title').textContent='Editar Equipamento';openModal('modal-equip');
 }
 function delEquip(id){DB.set('equipamentos',DB.get('equipamentos').filter(e=>e.id!=id));renderEquipamentos();}
-function resetEquipForm(){['equip-id','equip-nome','equip-diario','equip-semanal','equip-mensal','equip-unidade','equip-desc'].forEach(i=>document.getElementById(i).value='');document.getElementById('equip-qty').value=1;document.getElementById('equip-modal-title').textContent='Novo Equipamento';}
+function resetEquipForm(){['equip-id','equip-nome','equip-diario','equip-semanal','equip-mensal','equip-unidade','equip-desc','equip-grupo'].forEach(i=>document.getElementById(i).value='');document.getElementById('equip-qty').value=1;document.getElementById('equip-modal-title').textContent='Novo Equipamento';popularGruposDatalist();}
+// Preenche o datalist com grupos já cadastrados, pra facilitar reuso
+function popularGruposDatalist(){
+  const dl=document.getElementById('grupos-existentes');if(!dl)return;
+  const grupos=[...new Set(DB.get('equipamentos').map(e=>e.grupo).filter(Boolean))].sort();
+  dl.innerHTML=grupos.map(g=>`<option value="${g.replace(/"/g,'&quot;')}">`).join('');
+}
 
 // HISTÓRICO DO EQUIPAMENTO
 function verHistoricoEquip(id){
@@ -1570,11 +1640,44 @@ function resetTemplate(){DB.set('template',TPL_DEF);renderTemplate();}
 // ========================
 function renderEstoque(){
   const eq=DB.get('equipamentos');
-  document.getElementById('estoque-tbody').innerHTML=eq.map(e=>{
-    const d=Math.max(0,e.qty-(e.emUso||0)-(e.manutencao||0));const p=e.qty?Math.round((e.emUso||0)/e.qty*100):0;
+  // Linha de um item individual (mesmo formato de antes)
+  const linhaItem=(e,prefix='')=>{
+    const d=Math.max(0,e.qty-(e.emUso||0)-(e.manutencao||0));
+    const p=e.qty?Math.round((e.emUso||0)/e.qty*100):0;
     const bc=p>80?'var(--danger)':p>50?'var(--accent)':'var(--success)';
-    return`<tr><td><b>${e.nome}</b> <span style="font-size:11px;color:var(--muted)">${e.cat}</span></td><td>${e.qty}</td><td><span class="badge badge-green">${d}</span></td><td><span class="badge badge-orange">${e.emUso||0}</span></td><td><span class="badge badge-red">${e.manutencao||0}</span></td><td><div style="display:flex;align-items:center;gap:7px"><div style="width:75px;height:6px;background:var(--border);border-radius:4px;overflow:hidden"><div style="width:${p}%;height:100%;background:${bc};border-radius:4px"></div></div><span style="font-size:12px;color:var(--muted)">${p}%</span></div></td></tr>`;
-  }).join('');
+    return`<tr><td>${prefix}<b>${e.nome}</b> <span style="font-size:11px;color:var(--muted)">${e.cat}</span></td><td>${e.qty}</td><td><span class="badge badge-green">${d}</span></td><td><span class="badge badge-orange">${e.emUso||0}</span></td><td><span class="badge badge-red">${e.manutencao||0}</span></td><td><div style="display:flex;align-items:center;gap:7px"><div style="width:75px;height:6px;background:var(--border);border-radius:4px;overflow:hidden"><div style="width:${p}%;height:100%;background:${bc};border-radius:4px"></div></div><span style="font-size:12px;color:var(--muted)">${p}%</span></div></td></tr>`;
+  };
+  // Linha de cabeçalho de um grupo (somando os totais)
+  const linhaGrupo=(nome,items,gid)=>{
+    const total=items.reduce((s,e)=>s+(e.qty||0),0);
+    const emUso=items.reduce((s,e)=>s+(e.emUso||0),0);
+    const manut=items.reduce((s,e)=>s+(e.manutencao||0),0);
+    const disp=Math.max(0,total-emUso-manut);
+    const p=total?Math.round(emUso/total*100):0;
+    const bc=p>80?'var(--danger)':p>50?'var(--accent)':'var(--success)';
+    return`<tr class="estoque-grupo-row" onclick="toggleEstoqueGrupo('${gid}')" style="cursor:pointer;background:rgba(245,166,35,.05)"><td><span class="grp-arrow" id="${gid}-arrow" style="display:inline-block;width:14px">▾</span> <b style="font-family:'Syne',sans-serif">${nome}</b> <span style="font-size:11px;color:var(--muted)">${items[0].cat} · ${items.length} unidades</span></td><td><b>${total}</b></td><td><span class="badge badge-green">${disp}</span></td><td><span class="badge badge-orange">${emUso}</span></td><td><span class="badge badge-red">${manut}</span></td><td><div style="display:flex;align-items:center;gap:7px"><div style="width:75px;height:6px;background:var(--border);border-radius:4px;overflow:hidden"><div style="width:${p}%;height:100%;background:${bc};border-radius:4px"></div></div><span style="font-size:12px;color:var(--muted)">${p}%</span></div></td></tr>`;
+  };
+  // Separa grupos vs individuais
+  const porGrupo={};const semGrupo=[];
+  eq.forEach(e=>{if(e.grupo&&e.grupo.trim())(porGrupo[e.grupo]=porGrupo[e.grupo]||[]).push(e);else semGrupo.push(e);});
+  // Monta o HTML
+  let html='';
+  Object.keys(porGrupo).sort().forEach(nome=>{
+    const gid='est-'+nome.replace(/[^a-zA-Z0-9]/g,'_');
+    html+=linhaGrupo(nome,porGrupo[nome],gid);
+    // Linhas individuais (escondidas por padrão, com um espaço pra indentação)
+    html+=porGrupo[nome].map(e=>`<tr class="estoque-grupo-item est-of-${gid}" style="display:none;background:#fdfdff">${linhaItem(e,'<span style="color:#bbb;margin-right:8px">└</span>').replace(/^<tr>|<\/tr>$/g,'')}</tr>`).join('');
+  });
+  html+=semGrupo.map(e=>linhaItem(e)).join('');
+  document.getElementById('estoque-tbody').innerHTML=html;
+}
+function toggleEstoqueGrupo(gid){
+  const a=document.getElementById(gid+'-arrow');
+  const items=document.querySelectorAll('.est-of-'+gid);
+  if(!items.length)return;
+  const open=items[0].style.display==='none';
+  items.forEach(r=>r.style.display=open?'':'none');
+  if(a)a.textContent=open?'▴':'▾';
 }
 
 // ========================
