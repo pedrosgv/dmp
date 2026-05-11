@@ -32,7 +32,7 @@ nav{flex:1;padding:14px 10px;overflow-y:auto;}
 .page-header p{color:var(--muted);font-size:13.5px;margin-top:4px;}
 .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:24px;}
 .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:18px;position:relative;overflow:hidden;box-shadow:0 1px 3px rgba(20,28,55,.04);}
-.stat-card .val{font-family:'Syne',sans-serif;font-size:28px;font-weight:800;line-height:1;}
+.stat-card .val{font-family:Arial,sans-serif;font-size:28px;font-weight:700;line-height:1;}
 .stat-card .lbl{font-size:12px;color:var(--muted);margin-top:5px;}
 .stat-card .ico{position:absolute;right:14px;top:14px;font-size:24px;opacity:.15;}
 .stat-card.orange{border-top:3px solid var(--accent);}.stat-card.orange .val{color:var(--accent2);}
@@ -437,7 +437,7 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,166,35,.045)!importan
     <div class="nav-section">Operacional</div>
     <div class="nav-item" onclick="navTo('estoque',this)">Estoque &amp; Status</div>
     <div class="nav-item" onclick="navTo('financeiro',this)">Financeiro</div>
-    <div class="nav-item" onclick="navTo('meses',this)">Meses</div>
+    <div class="nav-item" onclick="navTo('meses',this)">Mensal</div>
   </nav>
   <div class="sidebar-footer">
     <div style="color:#5a607a;font-size:11px">v4.0 — Dados salvos na nuvem</div>
@@ -640,8 +640,8 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,166,35,.045)!importan
         <select id="meses-seletor" onchange="renderMeses()"></select>
       </div>
       <div style="display:flex;gap:6px">
-        <button class="btn btn-ghost btn-sm" onclick="navMes(-1)">← Anterior</button>
-        <button class="btn btn-ghost btn-sm" onclick="navMes(1)">Próximo →</button>
+        <button class="btn btn-ghost btn-sm" onclick="navMes(1)">← Anterior</button>
+        <button class="btn btn-ghost btn-sm" onclick="navMes(-1)">Próximo →</button>
       </div>
     </div>
   </div>
