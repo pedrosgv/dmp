@@ -68,6 +68,14 @@ tbody tr:hover td{background:#fafbff;}
 .badge-blue{background:rgba(58,127,212,.13);color:#2a6bbd;}
 .badge-gray{background:rgba(122,127,154,.14);color:#5a607a;}
 .badge-warning{background:rgba(240,144,10,.16);color:#a86000;}
+/* Select de status — aparência de badge clicável */
+.status-select{appearance:none;-webkit-appearance:none;border:0;border-radius:99px;padding:4px 24px 4px 11px;font-size:11px;font-weight:700;letter-spacing:.2px;text-transform:capitalize;cursor:pointer;outline:none;font-family:'DM Sans',sans-serif;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'><path d='M0 2l4 4 4-4' stroke='currentColor' stroke-width='1.5' fill='none'/></svg>");background-repeat:no-repeat;background-position:right 8px center;transition:filter .15s,box-shadow .15s;width:auto!important;min-width:108px;}
+.status-select:hover{filter:brightness(.95);box-shadow:0 0 0 2px rgba(0,0,0,.05);}
+.status-select:focus{box-shadow:0 0 0 2px rgba(245,166,35,.3);}
+.status-ativo{background-color:rgba(26,184,122,.13);color:#0e8f5c;}
+.status-pendente{background-color:rgba(245,166,35,.16);color:#a06200;}
+.status-finalizado{background-color:rgba(58,127,212,.13);color:#2a6bbd;}
+.status-cancelado{background-color:rgba(122,127,154,.14);color:#5a607a;}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 .form-group{display:flex;flex-direction:column;gap:5px;}
 .form-group.full{grid-column:1/-1;}
@@ -132,8 +140,11 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,166,35,.045)!importan
 .contract-preview .section-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin:20px 0 7px;border-bottom:2px solid #f5a623;padding-bottom:4px;color:#333;}
 .contract-preview table{width:100%;border-collapse:collapse;margin:8px 0;font-size:13px;}
 .contract-preview table th{background:#f5a623;color:#000;padding:7px 11px;text-align:left;font-weight:700;font-size:12px;}
-.contract-preview table td{padding:7px 11px;border-bottom:1px solid #eee;}
-.contract-preview table tr:nth-child(even) td{background:#f9f9f9;}
+.contract-preview table td{padding:9px 11px;}
+/* Linha discreta apenas entre os equipamentos (não entre linhas de totais/subtotal) */
+.contract-preview table tbody tr:not(.total-row):not(.subtotal-row) + tr:not(.total-row):not(.subtotal-row) td{border-top:1px solid #ececf0;}
+/* Separa o bloco de totais com uma linha um pouco mais nítida */
+.contract-preview table .subtotal-row td{border-top:1.5px solid #c8cad2;}
 .contract-preview .sign-row{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:48px;}
 .contract-preview .sign-line{border-top:2px solid #333;padding-top:7px;font-size:12px;color:#555;}
 .contract-logo{max-height:75px;display:block;margin:0 auto 10px;}
@@ -169,8 +180,8 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,166,35,.045)!importan
 .fatura-tabela-wrap{padding:6px 40px 0;}
 .fatura-tabela{width:100%;border-collapse:collapse;font-size:12.5px;}
 .fatura-tabela thead th{padding:14px 0;text-align:left;font-weight:700;text-transform:uppercase;font-size:10px;letter-spacing:1.5px;color:#8a8e9c;border-bottom:1.5px solid #0d1117;}
-.fatura-tabela tbody td{padding:14px 0;border-bottom:1px solid #f0f0f5;}
-.fatura-tabela tbody tr:last-child td{border-bottom:none;}
+.fatura-tabela tbody td{padding:14px 0;}
+.fatura-tabela tbody tr + tr td{border-top:1px solid #ececf0;}
 .fatura-tabela .col-desc{width:50%;}
 .fatura-tabela .col-qty{width:15%;text-align:center;}
 .fatura-tabela .col-per{width:15%;text-align:center;color:#5a607a;font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;}
@@ -692,9 +703,25 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,166,35,.045)!importan
         <button class="btn btn-ghost btn-sm" onclick="addContratoItem()">+ Adicionar Item</button>
       </div>
       <div id="contrato-itens-list"></div>
-      <div style="margin-top:11px;padding:11px 15px;background:var(--accent-light);border-radius:8px;border:1px solid rgba(245,166,35,.2);display:flex;justify-content:space-between;align-items:center">
-        <span style="font-size:13px;color:var(--muted);font-weight:500">Valor Total Estimado</span>
-        <b style="font-size:16px;color:var(--accent2)" id="contrato-total-preview">R$ 0,00</b>
+      <div style="margin-top:11px;padding:14px 16px;background:var(--accent-light);border-radius:8px;border:1px solid rgba(245,166,35,.2)">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:10px;border-bottom:1px dashed rgba(245,166,35,.3)">
+          <span style="font-size:12.5px;color:var(--muted);font-weight:500">Subtotal dos itens</span>
+          <b style="font-size:14px;color:var(--text)" id="contrato-subtotal-preview">R$ 0,00</b>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+          <div>
+            <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px">Desconto (R$)</label>
+            <input id="contrato-desconto" type="number" min="0" step="0.01" placeholder="0,00" oninput="atualizarTotal()" style="padding:7px 10px;font-size:13px">
+          </div>
+          <div>
+            <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;display:block;margin-bottom:4px">Frete (R$) <span style="font-weight:400;text-transform:none;letter-spacing:0">— negativo se absorver</span></label>
+            <input id="contrato-frete" type="number" step="0.01" placeholder="0,00" oninput="atualizarTotal()" style="padding:7px 10px;font-size:13px">
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid rgba(245,166,35,.3)">
+          <span style="font-size:13px;color:var(--muted);font-weight:500">Valor Total</span>
+          <b style="font-size:17px;color:var(--accent2)" id="contrato-total-preview">R$ 0,00</b>
+        </div>
       </div>
       <hr class="divider">
       <div class="form-group"><label>OBSERVAÇÕES / CLÁUSULAS ADICIONAIS</label><textarea id="contrato-obs" rows="3" placeholder="Observações específicas..."></textarea></div>
@@ -821,7 +848,7 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSess
 const FIELD_MAP={
   equipamentos:{toDb:o=>({id:o.id,nome:o.nome,cat:o.cat,qty:o.qty,em_uso:o.emUso||0,manutencao:o.manutencao||0,diario:o.diario,semanal:o.semanal,mensal:o.mensal,unidade:o.unidade,status:o.status,descricao:o.desc||'',grupo:o.grupo||null}),fromDb:r=>({id:r.id,nome:r.nome,cat:r.cat,qty:r.qty,emUso:r.em_uso,manutencao:r.manutencao,diario:Number(r.diario),semanal:Number(r.semanal),mensal:Number(r.mensal),unidade:r.unidade,status:r.status,desc:r.descricao||'',grupo:r.grupo||''})},
   clientes:{toDb:o=>({id:o.id,nome:o.nome,tipo:o.tipo,doc:o.doc,rg:o.rg,tel:o.tel,email:o.email,endereco:o.end,obs:o.obs}),fromDb:r=>({id:r.id,nome:r.nome,tipo:r.tipo,doc:r.doc,rg:r.rg,tel:r.tel,email:r.email,end:r.endereco,obs:r.obs})},
-  contratos:{toDb:o=>({id:o.id,cliente_id:o.clienteId,inicio:o.inicio,fim:o.fim||null,pagamento:o.pagamento,status:o.status,local:o.local,itens:o.itens||[],total:o.total||0,pago:!!o.pago,obs:o.obs,renovado_de:o.renovadoDe||null}),fromDb:r=>({id:r.id,clienteId:r.cliente_id,inicio:r.inicio,fim:r.fim,pagamento:r.pagamento,status:r.status,local:r.local,itens:r.itens||[],total:Number(r.total),pago:r.pago,obs:r.obs,criadoEm:r.created_at,renovadoDe:r.renovado_de})},
+  contratos:{toDb:o=>({id:o.id,cliente_id:o.clienteId,inicio:o.inicio,fim:o.fim||null,pagamento:o.pagamento,status:o.status,local:o.local,itens:o.itens||[],total:o.total||0,desconto:o.desconto||0,frete:o.frete||0,pago:!!o.pago,obs:o.obs,renovado_de:o.renovadoDe||null}),fromDb:r=>({id:r.id,clienteId:r.cliente_id,inicio:r.inicio,fim:r.fim,pagamento:r.pagamento,status:r.status,local:r.local,itens:r.itens||[],total:Number(r.total),desconto:Number(r.desconto||0),frete:Number(r.frete||0),pago:r.pago,obs:r.obs,criadoEm:r.created_at,renovadoDe:r.renovado_de})},
   manutencoes:{toDb:o=>({id:o.id,equip_id:o.equipId,data:o.data,tipo:o.tipo,valor:o.valor||0,responsavel:o.resp,descricao:o.desc,revisao_concluida:!!o.revisaoConcluida}),fromDb:r=>({id:r.id,equipId:r.equip_id,data:r.data,tipo:r.tipo,valor:Number(r.valor),resp:r.responsavel,desc:r.descricao,revisaoConcluida:r.revisao_concluida})},
 };
 const TPL_TODB=t=>({empresa_nome:t.empresaNome,empresa_doc:t.empresaDoc,empresa_tel:t.empresaTel,empresa_end:t.empresaEnd,cidade:t.cidade,vendedor:t.vendedor,fatura_info:t.faturaInfo,fatura_comentarios:t.faturaComentarios,obrigacoes:t.obrigacoes,multa:t.multa,foro:t.foro,obs:t.obs});
@@ -973,6 +1000,7 @@ function openModal(id){
   document.getElementById(id).classList.add('open');
   if(id==='modal-contrato')populateContratoSelects();
   if(id==='modal-nova-manut')populateManutSelects();
+  if(id==='modal-cliente')aplicarMascaras();
 }
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.modal-overlay').forEach(o=>o.addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');}));
@@ -1149,6 +1177,7 @@ function editCliente(id){
   document.getElementById('cliente-id').value=c.id;
   ['nome','tipo','doc','rg','tel','email','end','obs'].forEach(f=>document.getElementById('cliente-'+f).value=c[f]||'');
   document.getElementById('cliente-modal-title').textContent='Editar Cliente';openModal('modal-cliente');
+  setTimeout(aplicarMascaras,30);
 }
 function delCliente(id){DB.set('clientes',DB.get('clientes').filter(c=>c.id!=id));renderClientes();}
 function resetClienteForm(){['cliente-id','cliente-nome','cliente-doc','cliente-rg','cliente-tel','cliente-email','cliente-end','cliente-obs'].forEach(i=>document.getElementById(i).value='');document.getElementById('cliente-modal-title').textContent='Novo Cliente';}
@@ -1197,7 +1226,14 @@ function renderContratoItens(){
   }).join('');
   atualizarTotal();
 }
-function atualizarTotal(){const t=contratoItens.reduce((s,it)=>s+(it.qty*it.valor*(it.qtdPeriodo||1)),0);const el=document.getElementById('contrato-total-preview');if(el)el.textContent='R$ '+fmtMoney(t);}
+function atualizarTotal(){
+  const subtotal=contratoItens.reduce((s,it)=>s+(it.qty*it.valor*(it.qtdPeriodo||1)),0);
+  const desc=parseFloat(document.getElementById('contrato-desconto')?.value)||0;
+  const frete=parseFloat(document.getElementById('contrato-frete')?.value)||0;
+  const total=Math.max(0,subtotal-desc+frete);
+  const sub=document.getElementById('contrato-subtotal-preview');if(sub)sub.textContent='R$ '+fmtMoney(subtotal);
+  const el=document.getElementById('contrato-total-preview');if(el)el.textContent='R$ '+fmtMoney(total);
+}
 function onEquipChange(i,sel){contratoItens[i].equipId=parseInt(sel.value);calcItemValor(i);}
 function calcItemValor(i){const it=contratoItens[i];const eq=DB.get('equipamentos').find(e=>e.id==it.equipId);if(eq){contratoItens[i].valor=it.periodo==='diario'?eq.diario:it.periodo==='semanal'?eq.semanal:eq.mensal;}renderContratoItens();}
 function removeContratoItem(i){contratoItens.splice(i,1);renderContratoItens();}
@@ -1205,11 +1241,14 @@ function salvarContrato(){
   const cId=parseInt(document.getElementById('contrato-cliente').value);
   if(!cId){alert('Selecione um cliente.');return;}
   if(!contratoItens.length||contratoItens.some(it=>!it.equipId)){alert('Adicione ao menos um equipamento.');return;}
-  const total=contratoItens.reduce((s,it)=>s+(it.qty*it.valor*(it.qtdPeriodo||1)),0);
-  const obj={id:DB.nextId('contratos'),clienteId:cId,inicio:document.getElementById('contrato-inicio').value,fim:document.getElementById('contrato-fim').value,pagamento:document.getElementById('contrato-pagamento').value,status:document.getElementById('contrato-status').value,local:document.getElementById('contrato-local').value,itens:JSON.parse(JSON.stringify(contratoItens)),total,pago:false,obs:document.getElementById('contrato-obs').value,criadoEm:new Date().toISOString(),renovadoDe:null};
+  const subtotal=contratoItens.reduce((s,it)=>s+(it.qty*it.valor*(it.qtdPeriodo||1)),0);
+  const desconto=parseFloat(document.getElementById('contrato-desconto').value)||0;
+  const frete=parseFloat(document.getElementById('contrato-frete').value)||0;
+  const total=Math.max(0,subtotal-desconto+frete);
+  const obj={id:DB.nextId('contratos'),clienteId:cId,inicio:document.getElementById('contrato-inicio').value,fim:document.getElementById('contrato-fim').value,pagamento:document.getElementById('contrato-pagamento').value,status:document.getElementById('contrato-status').value,local:document.getElementById('contrato-local').value,itens:JSON.parse(JSON.stringify(contratoItens)),total,desconto,frete,pago:false,obs:document.getElementById('contrato-obs').value,criadoEm:new Date().toISOString(),renovadoDe:null};
   let eq=DB.get('equipamentos');obj.itens.forEach(it=>{eq=eq.map(e=>e.id==it.equipId?{...e,emUso:(e.emUso||0)+it.qty}:e);});DB.set('equipamentos',eq);
   let ct=DB.get('contratos');ct.push(obj);DB.set('contratos',ct);
-  closeModal('modal-contrato');contratoItens=[];renderContratos();updateBadges();
+  closeModal('modal-contrato');contratoItens=[];document.getElementById('contrato-desconto').value='';document.getElementById('contrato-frete').value='';renderContratos();updateBadges();
 }
 
 function renderContratos(q=''){
@@ -1243,7 +1282,12 @@ function renderContratos(q=''){
       <td>${fmtData(c.inicio)}</td><td>${dur}</td>
       <td>${fimTxt}${fimBadge}</td>
       <td><b style="color:var(--success)">R$ ${fmtMoney(c.total)}</b></td>
-      <td><span class="badge ${bg[c.status]||'badge-gray'}">${c.status}</span></td>
+      <td><select class="status-select status-${c.status}" onchange="alterarStatus(${c.id},this.value)" title="Clique para alterar o status">
+        <option value="pendente"${c.status==='pendente'?' selected':''}>Pendente</option>
+        <option value="ativo"${c.status==='ativo'?' selected':''}>Ativo</option>
+        <option value="finalizado"${c.status==='finalizado'?' selected':''}>Finalizado</option>
+        <option value="cancelado"${c.status==='cancelado'?' selected':''}>Cancelado</option>
+      </select></td>
       <td style="white-space:nowrap">
         <button class="btn btn-ghost btn-sm" onclick="verContrato(${c.id})">Ver</button>
         <button class="btn btn-info btn-sm" onclick="verFatura(${c.id})">Fatura</button>
@@ -1258,6 +1302,25 @@ function delContrato(id){
   const c=DB.get('contratos').find(x=>x.id==id);
   if(c){let eq=DB.get('equipamentos');c.itens.forEach(it=>{eq=eq.map(e=>e.id==it.equipId?{...e,emUso:Math.max(0,(e.emUso||0)-it.qty)}:e);});DB.set('equipamentos',eq);}
   DB.set('contratos',DB.get('contratos').filter(c=>c.id!=id));renderContratos();updateBadges();
+}
+// Altera o status do contrato e mantém a contagem de "em uso" do estoque coerente.
+// Regra: contratos "ativo" e "pendente" reservam estoque; "finalizado" e "cancelado" liberam.
+function alterarStatus(id,novo){
+  const ct=DB.get('contratos');
+  const c=ct.find(x=>x.id==id);if(!c)return;
+  const antigo=c.status;if(antigo===novo)return;
+  const reservaAntes=['ativo','pendente'].includes(antigo);
+  const reservaDepois=['ativo','pendente'].includes(novo);
+  if(reservaAntes!==reservaDepois){
+    let eq=DB.get('equipamentos');
+    const sinal=reservaDepois?1:-1;
+    c.itens.forEach(it=>{eq=eq.map(e=>e.id==it.equipId?{...e,emUso:Math.max(0,(e.emUso||0)+sinal*it.qty)}:e);});
+    DB.set('equipamentos',eq);
+  }
+  DB.set('contratos',ct.map(x=>x.id==id?{...x,status:novo}:x));
+  renderContratos();updateBadges();
+  if(document.getElementById('page-financeiro')?.classList.contains('active'))renderFinanceiro();
+  if(document.getElementById('page-estoque')?.classList.contains('active'))renderEstoque();
 }
 
 // ========================
@@ -1469,7 +1532,12 @@ function verContrato(id){
     <div class="section-title">2. DO OBJETO</div>
     <p contenteditable="true">Locação dos equipamentos abaixo para uso em: <b>${c.local||'[Local da obra]'}</b>.</p>
     <table><thead><tr><th>Equipamento</th><th>Quantidade</th><th>Duração</th><th>Valor Unit.</th><th>Subtotal</th></tr></thead>
-    <tbody>${rows}<tr class="total-row"><td colspan="4" style="text-align:right">VALOR TOTAL</td><td><b>R$ ${fmtMoney(c.total)}</b></td></tr></tbody></table>
+    <tbody>${rows}
+      <tr class="subtotal-row"><td colspan="4" style="text-align:right">Subtotal dos itens</td><td>R$ ${fmtMoney((c.total||0)+(c.desconto||0)-(c.frete||0))}</td></tr>
+      ${(c.desconto||0)>0?`<tr><td colspan="4" style="text-align:right">Desconto</td><td>− R$ ${fmtMoney(c.desconto)}</td></tr>`:''}
+      ${(c.frete||0)!==0?`<tr><td colspan="4" style="text-align:right">Frete</td><td>${(c.frete||0)<0?'− ':''}R$ ${fmtMoney(Math.abs(c.frete))}</td></tr>`:''}
+      <tr class="total-row"><td colspan="4" style="text-align:right">VALOR TOTAL</td><td><b>R$ ${fmtMoney(c.total)}</b></td></tr>
+    </tbody></table>
     <div class="section-title">3. DO PRAZO</div>
     <p contenteditable="true">Início em <b>${fmtData(c.inicio)}</b>${c.fim?` com término previsto em <b>${fmtData(c.fim)}</b>`:''}.</p>
     <div class="section-title">4. DO VALOR E PAGAMENTO</div>
@@ -1618,8 +1686,9 @@ function verFatura(id){
     <!-- TOTAIS -->
     <div class="fatura-totais-wrap">
       <div class="fatura-totais">
-        <div class="fatura-totais-linha"><span>Subtotal</span><b>R$ ${fmtMoney(c.total)}</b></div>
-        <div class="fatura-totais-linha" contenteditable="true" title="Clique para editar"><span>Frete</span><b>R$ 0,00</b></div>
+        <div class="fatura-totais-linha"><span>Subtotal</span><b>R$ ${fmtMoney((c.total||0)+(c.desconto||0)-(c.frete||0))}</b></div>
+        ${(c.desconto||0)>0?`<div class="fatura-totais-linha"><span>Desconto</span><b style="color:var(--success)">− R$ ${fmtMoney(c.desconto)}</b></div>`:''}
+        ${(c.frete||0)!==0?`<div class="fatura-totais-linha"><span>Frete</span><b>${(c.frete||0)<0?'− ':''}R$ ${fmtMoney(Math.abs(c.frete))}</b></div>`:'<div class="fatura-totais-linha" contenteditable="true" title="Clique para editar"><span>Frete</span><b>R$ 0,00</b></div>'}
         <div class="fatura-totais-total"><span>Total</span><span>R$ ${fmtMoney(c.total)}</span></div>
       </div>
     </div>
@@ -1823,6 +1892,43 @@ function delContratoConfirm(id){confirmar('Excluir este contrato?',()=>delContra
 // ========================
 
 // ========================
+// MÁSCARAS DE INPUT
+// Formatam automaticamente CPF, CNPJ, telefone, CEP enquanto o usuário digita
+// ========================
+const Mask={
+  // Aceita só dígitos e formata como CPF (000.000.000-00) — máx 11 dígitos
+  cpf(v){const d=String(v||'').replace(/\D/g,'').slice(0,11);
+    return d.replace(/^(\d{3})(\d)/,'$1.$2').replace(/^(\d{3})\.(\d{3})(\d)/,'$1.$2.$3').replace(/\.(\d{3})(\d)/,'.$1-$2');},
+  // CNPJ: 00.000.000/0000-00 — máx 14 dígitos
+  cnpj(v){const d=String(v||'').replace(/\D/g,'').slice(0,14);
+    return d.replace(/^(\d{2})(\d)/,'$1.$2').replace(/^(\d{2})\.(\d{3})(\d)/,'$1.$2.$3').replace(/\.(\d{3})(\d)/,'.$1/$2').replace(/(\d{4})(\d)/,'$1-$2');},
+  // Decide CPF ou CNPJ pelo número de dígitos
+  cpfCnpj(v){const d=String(v||'').replace(/\D/g,'');return d.length>11?Mask.cnpj(d):Mask.cpf(d);},
+  // Telefone: (00) 0000-0000 ou (00) 00000-0000
+  tel(v){const d=String(v||'').replace(/\D/g,'').slice(0,11);
+    if(d.length<=10)return d.replace(/^(\d{2})(\d)/,'($1) $2').replace(/(\d{4})(\d)/,'$1-$2');
+    return d.replace(/^(\d{2})(\d)/,'($1) $2').replace(/(\d{5})(\d)/,'$1-$2');},
+  // CEP: 00000-000
+  cep(v){return String(v||'').replace(/\D/g,'').slice(0,8).replace(/^(\d{5})(\d)/,'$1-$2');},
+  // Aplica uma máscara num <input>, preservando o cursor
+  bind(el,fn){if(!el||el._maskedFn===fn)return;el._maskedFn=fn;
+    const handler=()=>{const v=el.value;const m=fn(v);if(v!==m)el.value=m;};
+    el.addEventListener('input',handler);handler();}
+};
+// Liga as máscaras nos campos relevantes
+function aplicarMascaras(){
+  const tipo=document.getElementById('cliente-tipo');
+  const doc=document.getElementById('cliente-doc');
+  if(tipo&&doc){
+    const reformatar=()=>{const fn=tipo.value==='pj'?Mask.cnpj:Mask.cpf;doc._maskedFn=null;Mask.bind(doc,fn);};
+    if(!tipo._maskBound){tipo.addEventListener('change',reformatar);tipo._maskBound=true;}
+    reformatar();
+  }
+  ['cliente-tel','tpl-empresa-tel'].forEach(id=>{const el=document.getElementById(id);if(el)Mask.bind(el,Mask.tel);});
+  const tplDoc=document.getElementById('tpl-empresa-doc');if(tplDoc)Mask.bind(tplDoc,Mask.cpfCnpj);
+}
+
+// ========================
 // AUTH / BOOT
 // ========================
 async function fazerLogin(){
@@ -1862,6 +1968,7 @@ async function iniciarApp(){
     const u=document.getElementById('logged-user');if(u&&user)u.textContent=user.email;
     renderDashboard();updateBadges();
     setTimeout(applyTableLabels,80);
+    aplicarMascaras();
     document.getElementById('sync-overlay').style.display='none';
   }catch(err){
     console.error('[boot]',err);
