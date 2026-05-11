@@ -76,6 +76,8 @@ tbody tr:hover td{background:#fafbff;}
 .status-pendente{background-color:rgba(245,166,35,.16);color:#a06200;}
 .status-finalizado{background-color:rgba(58,127,212,.13);color:#2a6bbd;}
 .status-cancelado{background-color:rgba(122,127,154,.14);color:#5a607a;}
+.ajuste-manut-grid{display:grid;grid-template-columns:1.4fr .8fr 1.6fr;gap:14px;align-items:end;}
+@media (max-width:768px){.ajuste-manut-grid{grid-template-columns:1fr;gap:10px;}.ajuste-manut-grid>div:last-child{flex-direction:column;}}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 .form-group{display:flex;flex-direction:column;gap:5px;}
 .form-group.full{grid-column:1/-1;}
@@ -526,6 +528,31 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,166,35,.045)!importan
 <!-- MANUTENÇÃO -->
 <div class="page" id="page-manutencao">
   <div class="page-header"><h2>Revisão / Manutenção</h2><p>Controle de revisões e manutenções — alerta automático a cada 6 meses</p></div>
+
+  <!-- AJUSTE RÁPIDO DE QUANTIDADES EM MANUTENÇÃO -->
+  <div class="card" style="margin-bottom:18px">
+    <div class="card-header"><h3>Ajuste rápido de manutenção</h3></div>
+    <div class="card-body">
+      <p style="font-size:12.5px;color:var(--muted);margin-bottom:12px">Para equipamentos cadastrados em quantidade (ex: 1000 andaimes), informe quantas unidades vão para a manutenção ou retornam dela.</p>
+      <div class="ajuste-manut-grid">
+        <div>
+          <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Equipamento</label>
+          <select id="ajuste-manut-equip" onchange="atualizarInfoAjusteManut()">
+            <option value="">-- Selecione o equipamento --</option>
+          </select>
+        </div>
+        <div>
+          <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Quantidade</label>
+          <input id="ajuste-manut-qtd" type="number" min="1" value="1" placeholder="Quantas unidades?">
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-end">
+          <button class="btn btn-warning" style="flex:1" onclick="ajustarManutencao('enviar')">Enviar para manutenção</button>
+          <button class="btn btn-success" style="flex:1" onclick="ajustarManutencao('retirar')">Retirar da manutenção</button>
+        </div>
+      </div>
+      <div id="ajuste-manut-info" style="margin-top:12px;padding:10px 14px;background:var(--surface2);border-radius:8px;font-size:12.5px;color:var(--muted);display:none"></div>
+    </div>
+  </div>
   <div style="display:flex;gap:9px;margin-bottom:18px">
     <button class="btn btn-primary" onclick="openModal('modal-nova-manut')">+ Registrar Manutenção</button>
   </div>
@@ -1448,8 +1475,55 @@ function salvarManutencao(){
   closeModal('modal-nova-manut');renderManutencao();updateBadges();
 }
 
+// Mostra um resumo do equipamento selecionado (total, em uso, manutenção, disponível)
+function atualizarInfoAjusteManut(){
+  const sel=document.getElementById('ajuste-manut-equip');
+  const info=document.getElementById('ajuste-manut-info');
+  if(!sel||!info)return;
+  const id=parseInt(sel.value);
+  if(!id){info.style.display='none';return;}
+  const e=DB.get('equipamentos').find(x=>x.id==id);if(!e){info.style.display='none';return;}
+  const total=e.qty||0,emUso=e.emUso||0,manut=e.manutencao||0;
+  const disp=Math.max(0,total-emUso-manut);
+  info.style.display='';
+  info.innerHTML=`<b style="color:var(--text)">${e.nome}</b> · Total: <b>${total}</b> · Disponível: <b style="color:var(--success)">${disp}</b> · Em uso: <b style="color:var(--accent2)">${emUso}</b> · Em manutenção: <b style="color:var(--danger)">${manut}</b>`;
+}
+// Envia ou retira N unidades da manutenção, ajustando o contador.
+// Não cria registro de histórico — é só pra controle visual de quantos estão na oficina.
+function ajustarManutencao(acao){
+  const sel=document.getElementById('ajuste-manut-equip');
+  const qtdInput=document.getElementById('ajuste-manut-qtd');
+  const id=parseInt(sel.value);
+  const qtd=parseInt(qtdInput.value);
+  if(!id){alert('Selecione um equipamento.');return;}
+  if(!qtd||qtd<1){alert('Informe uma quantidade válida.');return;}
+  const eq=DB.get('equipamentos');
+  const e=eq.find(x=>x.id==id);if(!e)return;
+  const emManut=e.manutencao||0,emUso=e.emUso||0;
+  const disponivel=Math.max(0,(e.qty||0)-emUso-emManut);
+  if(acao==='enviar'){
+    if(qtd>disponivel){alert(`Só há ${disponivel} unidade(s) disponível(is) para enviar à manutenção.`);return;}
+    DB.set('equipamentos',eq.map(x=>x.id==id?{...x,manutencao:emManut+qtd}:x));
+  }else{ // retirar
+    if(qtd>emManut){alert(`Só há ${emManut} unidade(s) em manutenção. Não dá para retirar mais que isso.`);return;}
+    DB.set('equipamentos',eq.map(x=>x.id==id?{...x,manutencao:emManut-qtd}:x));
+  }
+  qtdInput.value=1;
+  renderManutencao();
+  if(document.getElementById('page-estoque')?.classList.contains('active'))renderEstoque();
+  if(document.getElementById('page-equipamentos')?.classList.contains('active'))renderEquipamentos();
+}
+
 function renderManutencao(){
   const eq=DB.get('equipamentos');
+  // Popula o seletor da seção de ajuste rápido com a lista atual de equipamentos
+  const selAj=document.getElementById('ajuste-manut-equip');
+  if(selAj){
+    const cur=selAj.value;
+    selAj.innerHTML='<option value="">-- Selecione o equipamento --</option>'+eq.map(e=>`<option value="${e.id}">${e.nome}${e.grupo?' · '+e.grupo:''}</option>`).join('');
+    if(cur)selAj.value=cur;
+    atualizarInfoAjusteManut();
+  }
   const manuts=DB.get('manutencoes');
   const tbody=document.getElementById('manut-tbody');
   const histTbody=document.getElementById('manut-hist-tbody');
