@@ -717,6 +717,35 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,166,35,.045)!importan
   </div>
 </div>
 
+<!-- AJUSTE DE ESTOQUE (compra / descarte / venda) -->
+<div class="modal-overlay" id="modal-ajuste-estoque">
+  <div class="modal">
+    <div class="modal-header"><h3>Ajustar estoque</h3><button class="modal-close" onclick="closeModal('modal-ajuste-estoque')">×</button></div>
+    <div class="modal-body">
+      <div id="ajuste-est-equip-info" style="padding:12px 14px;background:var(--surface2);border-radius:8px;font-size:13px;margin-bottom:14px"></div>
+
+      <p style="font-size:12.5px;color:var(--muted);margin-bottom:10px">Escolha a ação:</p>
+      <div class="form-group">
+        <label>AÇÃO</label>
+        <select id="ajuste-est-acao" onchange="atualizarLabelAjusteEstoque()">
+          <option value="adicionar">➕ Adicionar unidades (comprei mais)</option>
+          <option value="remover-disponivel">➖ Remover de Disponíveis (descartei/vendi)</option>
+          <option value="remover-manutencao">🛠️ Remover de Manutenção (sem conserto, descarte)</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label id="ajuste-est-label">QUANTIDADE</label>
+        <input id="ajuste-est-qtd" type="number" min="1" value="1">
+      </div>
+      <div id="ajuste-est-aviso" style="font-size:12.5px;padding:10px 12px;border-radius:8px;display:none"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-ajuste-estoque')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarAjusteEstoque()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
 <!-- HISTÓRICO DE MANUTENÇÃO DO EQUIPAMENTO -->
 <div class="modal-overlay" id="modal-hist-equip">
   <div class="modal modal-lg">
@@ -1127,6 +1156,7 @@ function renderEquipamentos(q=''){
       <div style="font-size:12px;color:var(--muted)">Mensal: <b style="color:var(--success)">R$ ${fmtMoney(e.mensal)}</b></div>
       <div class="equip-actions">
         <button class="btn btn-ghost btn-sm" onclick="editEquip(${e.id})">Editar</button>
+        <button class="btn btn-warning btn-sm" onclick="abrirAjusteEstoque(${e.id})">Estoque</button>
         <button class="btn btn-info btn-sm" onclick="verHistoricoEquip(${e.id})">Histórico</button>
         <button class="btn btn-danger btn-sm" onclick="delEquipConfirm(${e.id})">Excluir</button>
       </div>
@@ -1198,6 +1228,78 @@ function editEquip(id){
   document.getElementById('equip-modal-title').textContent='Editar Equipamento';openModal('modal-equip');
 }
 function delEquip(id){DB.set('equipamentos',DB.get('equipamentos').filter(e=>e.id!=id));renderEquipamentos();}
+
+// ========================
+// AJUSTE DE ESTOQUE — compra, descarte ou venda de unidades sem mexer nas locadas
+// ========================
+let _ajusteEstoqueId=null;
+function abrirAjusteEstoque(id){
+  const e=DB.get('equipamentos').find(x=>x.id==id);if(!e)return;
+  _ajusteEstoqueId=id;
+  document.getElementById('ajuste-est-acao').value='adicionar';
+  document.getElementById('ajuste-est-qtd').value=1;
+  renderAjusteEstoqueInfo();
+  atualizarLabelAjusteEstoque();
+  openModal('modal-ajuste-estoque');
+}
+// Mostra os números atuais do equipamento dentro do modal
+function renderAjusteEstoqueInfo(){
+  const e=DB.get('equipamentos').find(x=>x.id==_ajusteEstoqueId);if(!e)return;
+  const total=e.qty||0,emUso=e.emUso||0,manut=e.manutencao||0;
+  const disp=Math.max(0,total-emUso-manut);
+  document.getElementById('ajuste-est-equip-info').innerHTML=
+    `<b style="color:var(--text)">${e.nome}</b>${e.grupo?` <span style="font-size:11px;color:var(--muted)">· ${e.grupo}</span>`:''}<br>
+    <div style="margin-top:6px;font-size:12px;color:var(--muted)">
+      Total: <b style="color:var(--text)">${total}</b> ·
+      Disponível: <b style="color:var(--success)">${disp}</b> ·
+      Em uso: <b style="color:var(--accent2)">${emUso}</b> ·
+      Em manutenção: <b style="color:var(--danger)">${manut}</b>
+    </div>`;
+}
+// Ajusta texto auxiliar e máximo conforme a ação escolhida
+function atualizarLabelAjusteEstoque(){
+  const acao=document.getElementById('ajuste-est-acao').value;
+  const aviso=document.getElementById('ajuste-est-aviso');
+  const qtd=document.getElementById('ajuste-est-qtd');
+  const e=DB.get('equipamentos').find(x=>x.id==_ajusteEstoqueId);
+  if(!e){aviso.style.display='none';return;}
+  const disp=Math.max(0,(e.qty||0)-(e.emUso||0)-(e.manutencao||0));
+  aviso.style.display='';aviso.style.background='var(--accent-light)';aviso.style.color='var(--accent2)';
+  if(acao==='adicionar'){
+    qtd.removeAttribute('max');
+    aviso.innerHTML='✓ Vai adicionar ao <b>total</b> e ficarão como disponíveis para locação.';
+  }else if(acao==='remover-disponivel'){
+    qtd.max=disp;
+    if(disp===0){aviso.style.background='rgba(224,62,62,.1)';aviso.style.color='var(--danger)';aviso.innerHTML=`⚠ Não há unidades disponíveis pra remover. Tudo está alugado ou em manutenção.`;}
+    else aviso.innerHTML=`Máximo a remover: <b>${disp}</b> unidade(s) disponível(is). Não mexe nos que estão em uso ou manutenção.`;
+  }else{ // remover-manutencao
+    qtd.max=e.manutencao||0;
+    if(!(e.manutencao||0)){aviso.style.background='rgba(224,62,62,.1)';aviso.style.color='var(--danger)';aviso.innerHTML='⚠ Nenhuma unidade está em manutenção no momento.';}
+    else aviso.innerHTML=`Máximo a remover: <b>${e.manutencao}</b> unidade(s) em manutenção. Será descontado também do total.`;
+  }
+}
+function confirmarAjusteEstoque(){
+  const acao=document.getElementById('ajuste-est-acao').value;
+  const qtd=parseInt(document.getElementById('ajuste-est-qtd').value);
+  if(!qtd||qtd<1){alert('Informe uma quantidade válida.');return;}
+  const eq=DB.get('equipamentos');
+  const e=eq.find(x=>x.id==_ajusteEstoqueId);if(!e)return;
+  const disp=Math.max(0,(e.qty||0)-(e.emUso||0)-(e.manutencao||0));
+  if(acao==='adicionar'){
+    DB.set('equipamentos',eq.map(x=>x.id==_ajusteEstoqueId?{...x,qty:(x.qty||0)+qtd}:x));
+  }else if(acao==='remover-disponivel'){
+    if(qtd>disp){alert(`Só há ${disp} disponível(is). Não dá pra remover ${qtd}.`);return;}
+    DB.set('equipamentos',eq.map(x=>x.id==_ajusteEstoqueId?{...x,qty:(x.qty||0)-qtd}:x));
+  }else{ // remover da manutenção
+    const m=e.manutencao||0;
+    if(qtd>m){alert(`Só há ${m} unidade(s) em manutenção. Não dá pra remover ${qtd}.`);return;}
+    DB.set('equipamentos',eq.map(x=>x.id==_ajusteEstoqueId?{...x,qty:(x.qty||0)-qtd,manutencao:m-qtd}:x));
+  }
+  closeModal('modal-ajuste-estoque');renderEquipamentos();
+  if(document.getElementById('page-estoque')?.classList.contains('active'))renderEstoque();
+  if(document.getElementById('page-manutencao')?.classList.contains('active'))renderManutencao();
+}
+
 function resetEquipForm(){['equip-id','equip-nome','equip-diario','equip-semanal','equip-mensal','equip-unidade','equip-desc','equip-grupo'].forEach(i=>document.getElementById(i).value='');document.getElementById('equip-qty').value=1;document.getElementById('equip-modal-title').textContent='Novo Equipamento';popularGruposDatalist();}
 // Preenche o datalist com grupos já cadastrados, pra facilitar reuso
 function popularGruposDatalist(){
