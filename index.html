@@ -403,18 +403,17 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,166,35,.045)!importan
 .lock-toggle-btn{background:var(--accent);color:#1a1d2e;border:0;padding:8px 12px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;width:100%;margin-top:10px;transition:filter .15s;}
 .lock-toggle-btn:hover{filter:brightness(.95);}
 .lock-toggle-btn.destravado{background:transparent;color:var(--accent);border:1px solid var(--accent);}
-#banner-consulta{position:fixed;top:0;left:0;right:0;z-index:55;background:#1a1d2e;color:var(--accent);padding:7px 14px;font-size:12px;font-weight:600;text-align:center;letter-spacing:.3px;}
+#banner-consulta{position:fixed;top:0;left:0;right:0;z-index:9;background:#1a1d2e;color:var(--accent);padding:6px 14px;font-size:12px;font-weight:600;text-align:center;letter-spacing:.3px;}
 
 /* MODO CONSULTA (só-leitura) — ativo apenas no celular */
 @media (max-width:768px){
   body.readonly #banner-consulta{display:block!important;}
   body.readonly .main{padding-top:90px!important;}
-  body.readonly .mobile-menu-btn{top:38px;}
+  body.readonly .mobile-menu-btn{top:42px;}
 
-  /* Esconde botões de criação, exclusão e edição */
-  body.readonly .btn-danger,
-  body.readonly .btn-warning,
-  body.readonly .btn-success,
+  /* Esconde APENAS botões de ação de edição/criação/exclusão.
+     Não esconde por classe (.btn-danger / .btn-warning / .btn-success)
+     porque essas classes são usadas em vários botões neutros (hamburger, baixar PDF, etc). */
   body.readonly button[onclick*="openModal('modal-equip"],
   body.readonly button[onclick*="openModal('modal-cliente"],
   body.readonly button[onclick*="openModal('modal-contrato"],
@@ -426,7 +425,13 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,166,35,.045)!importan
   body.readonly button[onclick*="marcarPago"],
   body.readonly button[onclick*="desfazerPago"],
   body.readonly button[onclick*="ajustarManutencao"],
-  body.readonly button[onclick*="alterarStatus"]{display:none!important;}
+  body.readonly button[onclick*="alterarStatus"],
+  body.readonly button[onclick*="delEquipConfirm"],
+  body.readonly button[onclick*="delContratoConfirm"],
+  body.readonly button[onclick*="delClienteConfirm"],
+  body.readonly button[onclick*="removeContratoItem"],
+  body.readonly button[onclick*="abrirManutEquip"],
+  body.readonly button[onclick*="salvarTemplate"]{display:none!important;}
 
   /* Seletor de status do contrato fica visualmente como badge não-clicável */
   body.readonly .status-select{pointer-events:none;padding-right:11px;background-image:none;}
@@ -467,7 +472,10 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,166,35,.045)!importan
 <div id="sync-status"></div>
 
 <!-- BANNER DE MODO CONSULTA (só aparece no celular quando travado) -->
-<div id="banner-consulta" style="display:none">👁 Modo consulta — edição desativada</div>
+<div id="banner-consulta" style="display:none">
+  <span>Modo consulta — edição desativada</span>
+  <button onclick="alternarBloqueio()" id="banner-unlock-btn" style="background:var(--accent);color:#1a1d2e;border:0;padding:3px 10px;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;margin-left:10px">Destravar</button>
+</div>
 
 <div class="app" style="display:none">
 <aside class="sidebar">
@@ -501,7 +509,7 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,166,35,.045)!importan
   <div class="sidebar-footer">
     <div style="color:#5a607a;font-size:11px">v4.0 — Dados salvos na nuvem</div>
     <div id="logged-user" style="color:#9aa0bd;font-size:10.5px;margin-top:6px;word-break:break-all"></div>
-    <button class="lock-toggle-btn" id="lock-toggle-btn" onclick="alternarBloqueio()" style="display:none">🔓 Permitir edição</button>
+    <button class="lock-toggle-btn" id="lock-toggle-btn" onclick="alternarBloqueio()" style="display:none">Permitir edição</button>
     <button class="logout-btn" style="margin-top:10px" onclick="fazerLogout()">Sair</button>
   </div>
 </aside>
@@ -2474,7 +2482,7 @@ function aplicarModoConsulta(){
   const btn=document.getElementById('lock-toggle-btn');
   if(eCelular()){
     document.body.classList.add('readonly');
-    if(btn){btn.style.display='';btn.textContent='🔓 Permitir edição';btn.classList.remove('destravado');}
+    if(btn){btn.style.display='';btn.textContent='Permitir edição';btn.classList.remove('destravado');}
   }else{
     document.body.classList.remove('readonly');
     if(btn)btn.style.display='none';
@@ -2485,11 +2493,11 @@ function alternarBloqueio(){
   const travado=document.body.classList.contains('readonly');
   if(travado){
     document.body.classList.remove('readonly');
-    btn.textContent='🔒 Voltar ao modo consulta';
+    btn.textContent='Voltar ao modo consulta';
     btn.classList.add('destravado');
   }else{
     document.body.classList.add('readonly');
-    btn.textContent='🔓 Permitir edição';
+    btn.textContent='Permitir edição';
     btn.classList.remove('destravado');
   }
 }
