@@ -400,50 +400,6 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,166,35,.045)!importan
 #sync-status.error{color:var(--danger);border-color:var(--danger);}
 .logout-btn{background:transparent;color:#5a607a;border:1px solid #2a2f48;padding:6px 12px;border-radius:6px;font-size:12px;cursor:pointer;transition:all .18s;}
 .logout-btn:hover{background:#2a2f48;color:#fff;}
-.lock-toggle-btn{background:var(--accent);color:#1a1d2e;border:0;padding:8px 12px;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;width:100%;margin-top:10px;transition:filter .15s;}
-.lock-toggle-btn:hover{filter:brightness(.95);}
-.lock-toggle-btn.destravado{background:transparent;color:var(--accent);border:1px solid var(--accent);}
-#banner-consulta{position:fixed;top:0;left:0;right:0;z-index:9;background:#1a1d2e;color:var(--accent);padding:6px 14px;font-size:12px;font-weight:600;text-align:center;letter-spacing:.3px;}
-
-/* MODO CONSULTA (só-leitura) — ativo apenas no celular */
-@media (max-width:768px){
-  body.readonly #banner-consulta{display:block!important;}
-  body.readonly .main{padding-top:90px!important;}
-  body.readonly .mobile-menu-btn{top:42px;}
-
-  /* Esconde APENAS botões de ação de edição/criação/exclusão.
-     Não esconde por classe (.btn-danger / .btn-warning / .btn-success)
-     porque essas classes são usadas em vários botões neutros (hamburger, baixar PDF, etc). */
-  body.readonly button[onclick*="openModal('modal-equip"],
-  body.readonly button[onclick*="openModal('modal-cliente"],
-  body.readonly button[onclick*="openModal('modal-contrato"],
-  body.readonly button[onclick*="openModal('modal-nova-manut"],
-  body.readonly button[onclick*="editEquip"],
-  body.readonly button[onclick*="editCliente"],
-  body.readonly button[onclick*="abrirAjusteEstoque"],
-  body.readonly button[onclick*="abrirRenovar"],
-  body.readonly button[onclick*="marcarPago"],
-  body.readonly button[onclick*="desfazerPago"],
-  body.readonly button[onclick*="ajustarManutencao"],
-  body.readonly button[onclick*="alterarStatus"],
-  body.readonly button[onclick*="delEquipConfirm"],
-  body.readonly button[onclick*="delContratoConfirm"],
-  body.readonly button[onclick*="delClienteConfirm"],
-  body.readonly button[onclick*="removeContratoItem"],
-  body.readonly button[onclick*="abrirManutEquip"],
-  body.readonly button[onclick*="salvarTemplate"]{display:none!important;}
-
-  /* Seletor de status do contrato fica visualmente como badge não-clicável */
-  body.readonly .status-select{pointer-events:none;padding-right:11px;background-image:none;}
-
-  /* Seção "Ajuste rápido de manutenção" some inteira */
-  body.readonly #page-manutencao .card:first-of-type{display:none;}
-
-  /* Página de Modelos fica trancada */
-  body.readonly #page-template input,
-  body.readonly #page-template textarea,
-  body.readonly #page-template select{pointer-events:none;background:var(--surface2);opacity:.7;}
-}
 </style>
 </head>
 <body>
@@ -470,12 +426,6 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,166,35,.045)!importan
 
 <!-- INDICADOR DE STATUS DE SINCRONIZAÇÃO -->
 <div id="sync-status"></div>
-
-<!-- BANNER DE MODO CONSULTA (só aparece no celular quando travado) -->
-<div id="banner-consulta" style="display:none">
-  <span>Modo consulta — edição desativada</span>
-  <button onclick="alternarBloqueio()" id="banner-unlock-btn" style="background:var(--accent);color:#1a1d2e;border:0;padding:3px 10px;border-radius:5px;font-size:11px;font-weight:700;cursor:pointer;margin-left:10px">Destravar</button>
-</div>
 
 <div class="app" style="display:none">
 <aside class="sidebar">
@@ -509,7 +459,6 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,166,35,.045)!importan
   <div class="sidebar-footer">
     <div style="color:#5a607a;font-size:11px">v4.0 — Dados salvos na nuvem</div>
     <div id="logged-user" style="color:#9aa0bd;font-size:10.5px;margin-top:6px;word-break:break-all"></div>
-    <button class="lock-toggle-btn" id="lock-toggle-btn" onclick="alternarBloqueio()" style="display:none">Permitir edição</button>
     <button class="logout-btn" style="margin-top:10px" onclick="fazerLogout()">Sair</button>
   </div>
 </aside>
@@ -2464,49 +2413,12 @@ async function iniciarApp(){
     renderDashboard();updateBadges();
     setTimeout(applyTableLabels,80);
     aplicarMascaras();
-    aplicarModoConsulta();
     document.getElementById('sync-overlay').style.display='none';
   }catch(err){
     console.error('[boot]',err);
     document.getElementById('sync-text').innerHTML='⚠ Erro ao carregar dados.<br><button class="logout-btn" style="margin-top:10px" onclick="location.reload()">Tentar novamente</button>';
   }
 }
-
-// ========================
-// MODO CONSULTA (só-leitura no celular)
-// Liga automático em telas <= 768px. Usuário pode destravar pra editar
-// (a escolha NÃO persiste — ao recarregar, volta a travar pra segurança).
-// ========================
-function eCelular(){return window.innerWidth<=768;}
-function aplicarModoConsulta(){
-  const btn=document.getElementById('lock-toggle-btn');
-  if(eCelular()){
-    document.body.classList.add('readonly');
-    if(btn){btn.style.display='';btn.textContent='Permitir edição';btn.classList.remove('destravado');}
-  }else{
-    document.body.classList.remove('readonly');
-    if(btn)btn.style.display='none';
-  }
-}
-function alternarBloqueio(){
-  const btn=document.getElementById('lock-toggle-btn');
-  const travado=document.body.classList.contains('readonly');
-  if(travado){
-    document.body.classList.remove('readonly');
-    btn.textContent='Voltar ao modo consulta';
-    btn.classList.add('destravado');
-  }else{
-    document.body.classList.add('readonly');
-    btn.textContent='Permitir edição';
-    btn.classList.remove('destravado');
-  }
-}
-// Reavalia se virou celular/desktop ao girar tela ou redimensionar
-window.addEventListener('resize',()=>{
-  // só re-aplica se o usuário não destravou manualmente (botão na cor original)
-  const btn=document.getElementById('lock-toggle-btn');
-  if(!btn||!btn.classList.contains('destravado'))aplicarModoConsulta();
-});
 // Permite ENTER no formulário de login
 document.addEventListener('keydown',e=>{
   if(e.key==='Enter'&&document.getElementById('login-screen').style.display!=='none'){
