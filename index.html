@@ -451,6 +451,7 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,166,35,.045)!importan
     </div>
     <div class="nav-section">Configurações</div>
     <div class="nav-item" onclick="navTo('template',this)">Modelos de Contrato e Fatura</div>
+    <div class="nav-item" onclick="navTo('filiais',this)">Filiais</div>
     <div class="nav-section">Operacional</div>
     <div class="nav-item" onclick="navTo('estoque',this)">Estoque &amp; Status</div>
     <div class="nav-item" onclick="navTo('financeiro',this)">Financeiro</div>
@@ -628,6 +629,41 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,166,35,.045)!importan
   </div>
 </div>
 
+<!-- FILIAIS -->
+<div class="page" id="page-filiais">
+  <div class="page-header"><h2>Filiais</h2><p>Cadastre filiais que podem aparecer em contratos e faturas</p></div>
+  <div class="card">
+    <div class="card-header">
+      <h3>Suas filiais</h3>
+      <button class="btn btn-primary btn-sm" onclick="resetFilialForm();openModal('modal-filial')">+ Nova Filial</button>
+    </div>
+    <div class="card-body">
+      <div id="filiais-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FILIAL -->
+<div class="modal-overlay" id="modal-filial">
+  <div class="modal">
+    <div class="modal-header"><h3 id="filial-modal-title">Nova Filial</h3><button class="modal-close" onclick="closeModal('modal-filial')">×</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="filial-id">
+      <div class="form-grid">
+        <div class="form-group full"><label>NOME / RAZÃO SOCIAL</label><input id="filial-nome" placeholder="Ex: DMP Locações — Filial Taubaté"></div>
+        <div class="form-group"><label>CNPJ</label><input id="filial-cnpj" placeholder="00.000.000/0000-00"></div>
+        <div class="form-group"><label>TELEFONE</label><input id="filial-telefone" placeholder="(00) 00000-0000"></div>
+        <div class="form-group full"><label>ENDEREÇO</label><input id="filial-endereco" placeholder="Rua, número, bairro, cidade/UF"></div>
+        <div class="form-group full"><label>E-MAIL / INFO ADICIONAL</label><input id="filial-email" placeholder="contato@filial.com"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-filial')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarFilial()">Salvar Filial</button>
+    </div>
+  </div>
+</div>
+
 <!-- ESTOQUE -->
 <div class="page" id="page-estoque">
   <div class="page-header"><h2>Estoque &amp; Status</h2><p>Monitoramento em tempo real</p></div>
@@ -795,6 +831,9 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,166,35,.045)!importan
             <div class="busca-select-lista" id="lista-cliente-busca"></div>
           </div>
         </div>
+        <div class="form-group full"><label>FILIAL <span style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(opcional — se preenchida, aparecerá no contrato/fatura além da matriz)</span></label>
+          <select id="contrato-filial"><option value="">— Sem filial (apenas matriz) —</option></select>
+        </div>
         <div class="form-group"><label>DATA DE INÍCIO</label><input id="contrato-inicio" type="date"></div>
         <div class="form-group"><label>DATA DE TÉRMINO (opcional)</label><input id="contrato-fim" type="date"></div>
         <div class="form-group"><label>FORMA DE PAGAMENTO</label>
@@ -956,8 +995,9 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSess
 const FIELD_MAP={
   equipamentos:{toDb:o=>({id:o.id,nome:o.nome,cat:o.cat,qty:o.qty,em_uso:o.emUso||0,manutencao:o.manutencao||0,diario:o.diario,semanal:o.semanal,mensal:o.mensal,unidade:o.unidade,status:o.status,descricao:o.desc||'',grupo:o.grupo||null}),fromDb:r=>({id:r.id,nome:r.nome,cat:r.cat,qty:r.qty,emUso:r.em_uso,manutencao:r.manutencao,diario:Number(r.diario),semanal:Number(r.semanal),mensal:Number(r.mensal),unidade:r.unidade,status:r.status,desc:r.descricao||'',grupo:r.grupo||''})},
   clientes:{toDb:o=>({id:o.id,nome:o.nome,tipo:o.tipo,doc:o.doc,rg:o.rg,tel:o.tel,email:o.email,endereco:o.end,obs:o.obs}),fromDb:r=>({id:r.id,nome:r.nome,tipo:r.tipo,doc:r.doc,rg:r.rg,tel:r.tel,email:r.email,end:r.endereco,obs:r.obs})},
-  contratos:{toDb:o=>({id:o.id,cliente_id:o.clienteId,inicio:o.inicio,fim:o.fim||null,pagamento:o.pagamento,status:o.status,local:o.local,itens:o.itens||[],total:o.total||0,desconto:o.desconto||0,frete:o.frete||0,pago:!!o.pago,obs:o.obs,renovado_de:o.renovadoDe||null}),fromDb:r=>({id:r.id,clienteId:r.cliente_id,inicio:r.inicio,fim:r.fim,pagamento:r.pagamento,status:r.status,local:r.local,itens:r.itens||[],total:Number(r.total),desconto:Number(r.desconto||0),frete:Number(r.frete||0),pago:r.pago,obs:r.obs,criadoEm:r.created_at,renovadoDe:r.renovado_de})},
+  contratos:{toDb:o=>({id:o.id,cliente_id:o.clienteId,inicio:o.inicio,fim:o.fim||null,pagamento:o.pagamento,status:o.status,local:o.local,itens:o.itens||[],total:o.total||0,desconto:o.desconto||0,frete:o.frete||0,pago:!!o.pago,obs:o.obs,renovado_de:o.renovadoDe||null,filial_id:o.filialId||null}),fromDb:r=>({id:r.id,clienteId:r.cliente_id,inicio:r.inicio,fim:r.fim,pagamento:r.pagamento,status:r.status,local:r.local,itens:r.itens||[],total:Number(r.total),desconto:Number(r.desconto||0),frete:Number(r.frete||0),pago:r.pago,obs:r.obs,criadoEm:r.created_at,renovadoDe:r.renovado_de,filialId:r.filial_id})},
   manutencoes:{toDb:o=>({id:o.id,equip_id:o.equipId,data:o.data,tipo:o.tipo,valor:o.valor||0,responsavel:o.resp,descricao:o.desc,revisao_concluida:!!o.revisaoConcluida}),fromDb:r=>({id:r.id,equipId:r.equip_id,data:r.data,tipo:r.tipo,valor:Number(r.valor),resp:r.responsavel,desc:r.descricao,revisaoConcluida:r.revisao_concluida})},
+  filiais:{toDb:o=>({id:o.id,nome:o.nome,cnpj:o.cnpj||null,endereco:o.endereco||null,telefone:o.telefone||null,email:o.email||null}),fromDb:r=>({id:r.id,nome:r.nome,cnpj:r.cnpj||'',endereco:r.endereco||'',telefone:r.telefone||'',email:r.email||''})},
 };
 const TPL_TODB=t=>({empresa_nome:t.empresaNome,empresa_doc:t.empresaDoc,empresa_tel:t.empresaTel,empresa_end:t.empresaEnd,cidade:t.cidade,vendedor:t.vendedor,fatura_info:t.faturaInfo,fatura_comentarios:t.faturaComentarios,obrigacoes:t.obrigacoes,multa:t.multa,foro:t.foro,obs:t.obs});
 const TPL_FROMDB=r=>({empresaNome:r.empresa_nome,empresaDoc:r.empresa_doc,empresaTel:r.empresa_tel,empresaEnd:r.empresa_end,cidade:r.cidade,vendedor:r.vendedor||'',faturaInfo:r.fatura_info||'',faturaComentarios:r.fatura_comentarios||'',obrigacoes:r.obrigacoes,multa:r.multa,foro:r.foro,obs:r.obs});
@@ -966,7 +1006,7 @@ const TPL_FROMDB=r=>({empresaNome:r.empresa_nome,empresaDoc:r.empresa_doc,empres
 // DATABASE (cache em memória + sync com Supabase)
 // API síncrona compatível: DB.get / DB.set / DB.getObj / DB.nextId
 // ========================
-const _cache={equipamentos:[],clientes:[],contratos:[],manutencoes:[],template:null};
+const _cache={equipamentos:[],clientes:[],contratos:[],manutencoes:[],filiais:[],template:null};
 let _saveTimers={};
 let _pendingChanges=new Set();
 const DB={
@@ -1022,7 +1062,7 @@ async function flushToCloud(table){
 
 // Carrega TODOS os dados do Supabase pro cache local
 async function loadAllFromCloud(){
-  const tables=['equipamentos','clientes','contratos','manutencoes'];
+  const tables=['equipamentos','clientes','contratos','manutencoes','filiais'];
   for(const t of tables){
     const {data,error}=await sb.from(t).select('*').order('id',{ascending:true});
     if(error)throw error;
@@ -1073,7 +1113,7 @@ function navTo(pg,el){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+pg).classList.add('active');
   if(el)el.classList.add('active');
-  ({dashboard:renderDashboard,equipamentos:renderEquipamentos,clientes:renderClientes,contratos:renderContratos,validade:renderValidade,manutencao:renderManutencao,template:renderTemplate,estoque:renderEstoque,financeiro:renderFinanceiro,meses:renderMeses})[pg]?.();
+  ({dashboard:renderDashboard,equipamentos:renderEquipamentos,clientes:renderClientes,contratos:renderContratos,validade:renderValidade,manutencao:renderManutencao,template:renderTemplate,estoque:renderEstoque,financeiro:renderFinanceiro,meses:renderMeses,filiais:renderFiliais})[pg]?.();
   // Fecha o menu lateral ao trocar de página no celular
   if(window.innerWidth<=768)toggleSidebar(false);
   // Aplica rótulos nas células das tabelas (pra ficarem legíveis no celular)
@@ -1399,6 +1439,10 @@ function populateContratoSelects(){
   document.getElementById('contrato-cliente').value='';
   document.getElementById('contrato-cliente-busca').value='';
   document.getElementById('lista-cliente-busca').classList.remove('show');
+  // Popula filiais
+  const selFil=document.getElementById('contrato-filial');
+  selFil.innerHTML='<option value="">— Sem filial (apenas matriz) —</option>'+DB.get('filiais').map(f=>`<option value="${f.id}">${f.nome}</option>`).join('');
+  selFil.value='';
   contratoItens=[];renderContratoItens();
   document.getElementById('contrato-inicio').value=hoje();
   const dn=document.getElementById('contrato-desconto');if(dn)dn.value='';
@@ -1538,7 +1582,8 @@ function salvarContrato(){
   const desconto=parseFloat(document.getElementById('contrato-desconto').value)||0;
   const frete=parseFloat(document.getElementById('contrato-frete').value)||0;
   const total=Math.max(0,subtotal-desconto+frete);
-  const obj={id:DB.nextId('contratos'),clienteId:cId,inicio:document.getElementById('contrato-inicio').value,fim:document.getElementById('contrato-fim').value,pagamento:document.getElementById('contrato-pagamento').value,status:document.getElementById('contrato-status').value,local:document.getElementById('contrato-local').value,itens:JSON.parse(JSON.stringify(contratoItens)),total,desconto,frete,pago:false,obs:document.getElementById('contrato-obs').value,criadoEm:new Date().toISOString(),renovadoDe:null};
+  const filialId=parseInt(document.getElementById('contrato-filial').value)||null;
+  const obj={id:DB.nextId('contratos'),clienteId:cId,filialId,inicio:document.getElementById('contrato-inicio').value,fim:document.getElementById('contrato-fim').value,pagamento:document.getElementById('contrato-pagamento').value,status:document.getElementById('contrato-status').value,local:document.getElementById('contrato-local').value,itens:JSON.parse(JSON.stringify(contratoItens)),total,desconto,frete,pago:false,obs:document.getElementById('contrato-obs').value,criadoEm:new Date().toISOString(),renovadoDe:null};
   let eq=DB.get('equipamentos');obj.itens.forEach(it=>{eq=eq.map(e=>e.id==it.equipId?{...e,emUso:(e.emUso||0)+it.qty}:e);});DB.set('equipamentos',eq);
   let ct=DB.get('contratos');ct.push(obj);DB.set('contratos',ct);
   closeModal('modal-contrato');contratoItens=[];document.getElementById('contrato-desconto').value='';document.getElementById('contrato-frete').value='';renderContratos();updateBadges();
@@ -1853,6 +1898,7 @@ function verContrato(id){
   const cl=DB.get('clientes').find(x=>x.id===c.clienteId)||{};
   const eq=DB.get('equipamentos');
   const tpl=DB.getObj('template',TPL_DEF);
+  const filial=c.filialId?DB.get('filiais').find(f=>f.id===c.filialId):null;
   const logo=localStorage.getItem('gl_logo')||'';
   const rows=c.itens.map(it=>{
     const e=eq.find(x=>x.id==it.equipId)||{nome:'—',unidade:'un'};
@@ -1869,6 +1915,7 @@ function verContrato(id){
     </div>
     <div class="section-title">1. DAS PARTES</div>
     <p contenteditable="true"><b>LOCADOR:</b> ${tpl.empresaNome}, inscrito no CNPJ/CPF nº ${tpl.empresaDoc}, com sede em ${tpl.empresaEnd}, telefone ${tpl.empresaTel}.</p><br>
+    ${filial?`<p contenteditable="true"><b>FILIAL:</b> ${filial.nome}${filial.cnpj?`, inscrita no CNPJ nº ${filial.cnpj}`:''}${filial.endereco?`, com sede em ${filial.endereco}`:''}${filial.telefone?`, telefone ${filial.telefone}`:''}${filial.email?`, e-mail: ${filial.email}`:''}.</p><br>`:''}
     <p contenteditable="true"><b>LOCATÁRIO:</b> ${cl.nome||'—'}, ${cl.tipo==='pj'?'CNPJ':'CPF'}: ${cl.doc||'—'}, RG/IE: ${cl.rg||'—'}, telefone: ${cl.tel||'—'}, e-mail: ${cl.email||'—'}, endereço: ${cl.end||'—'}.</p>
     <div class="section-title">2. DO OBJETO</div>
     <p contenteditable="true">Locação dos equipamentos abaixo para uso em: <b>${c.local||'[Local da obra]'}</b>.</p>
@@ -1954,6 +2001,7 @@ function verFatura(id){
   const cl=DB.get('clientes').find(x=>x.id===c.clienteId)||{};
   const eq=DB.get('equipamentos');
   const tpl=DB.getObj('template',TPL_DEF);
+  const filial=c.filialId?DB.get('filiais').find(f=>f.id===c.filialId):null;
 
   const rows=c.itens.map(it=>{
     const e=eq.find(x=>x.id==it.equipId)||{nome:'—',unidade:'un'};
@@ -1994,7 +2042,7 @@ function verFatura(id){
 
     <!-- BLOCOS DE INFORMAÇÃO -->
     <div class="fatura-secao">
-      <div class="fatura-secao-grid">
+      <div class="fatura-secao-grid" ${filial?'style="grid-template-columns:1fr 1fr 1fr"':''}>
         <div>
           <div class="fatura-bloco-titulo">Emitente</div>
           <div class="fatura-bloco-conteudo">
@@ -2004,6 +2052,15 @@ function verFatura(id){
             ${tpl.faturaInfo?`<br>${tpl.faturaInfo}`:''}
           </div>
         </div>
+        ${filial?`<div>
+          <div class="fatura-bloco-titulo">Filial</div>
+          <div class="fatura-bloco-conteudo">
+            <b>${filial.nome}</b>${filial.cnpj?`<br>CNPJ: ${filial.cnpj}`:''}
+            ${filial.endereco?`<br>${filial.endereco}`:''}
+            ${filial.telefone?`<br>${filial.telefone}`:''}
+            ${filial.email?`<br>${filial.email}`:''}
+          </div>
+        </div>`:''}
         <div>
           <div class="fatura-bloco-titulo">Cliente</div>
           <div class="fatura-bloco-conteudo">
@@ -2053,6 +2110,80 @@ function verFatura(id){
     </div>`;
 
   openModal('modal-ver-fatura');
+}
+
+// ========================
+// FILIAIS
+// ========================
+function renderFiliais(){
+  const f=DB.get('filiais');
+  const div=document.getElementById('filiais-list');
+  if(!f.length){
+    div.innerHTML='<div class="empty-state" style="padding:30px 10px"><p>Nenhuma filial cadastrada ainda.</p><p style="font-size:12.5px;margin-top:8px;color:var(--muted)">Filiais aparecem como opção ao criar um novo contrato.</p></div>';
+    return;
+  }
+  div.innerHTML=f.map(x=>`<div style="background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px">
+    <div style="display:flex;justify-content:space-between;align-items:start;gap:10px;flex-wrap:wrap">
+      <div style="flex:1;min-width:200px">
+        <div style="font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px">${x.nome}</div>
+        <div style="font-size:12.5px;color:var(--muted);line-height:1.55">
+          ${x.cnpj?`CNPJ: <b style="color:var(--text)">${x.cnpj}</b><br>`:''}
+          ${x.endereco?`${x.endereco}<br>`:''}
+          ${x.telefone?`${x.telefone}${x.email?' · ':''}`:''}${x.email||''}
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="editFilial(${x.id})">Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="delFilialConfirm(${x.id})">Excluir</button>
+      </div>
+    </div>
+  </div>`).join('');
+}
+function salvarFilial(){
+  const id=document.getElementById('filial-id').value;
+  const obj={
+    id:id?parseInt(id):DB.nextId('filiais'),
+    nome:document.getElementById('filial-nome').value.trim(),
+    cnpj:document.getElementById('filial-cnpj').value.trim(),
+    endereco:document.getElementById('filial-endereco').value.trim(),
+    telefone:document.getElementById('filial-telefone').value.trim(),
+    email:document.getElementById('filial-email').value.trim(),
+  };
+  if(!obj.nome){alert('Informe o nome da filial.');return;}
+  let f=DB.get('filiais');
+  if(id)f=f.map(x=>x.id==id?obj:x);else f.push(obj);
+  DB.set('filiais',f);
+  closeModal('modal-filial');resetFilialForm();renderFiliais();
+}
+function editFilial(id){
+  const f=DB.get('filiais').find(x=>x.id==id);if(!f)return;
+  document.getElementById('filial-id').value=f.id;
+  ['nome','cnpj','endereco','telefone','email'].forEach(k=>document.getElementById('filial-'+k).value=f[k]||'');
+  document.getElementById('filial-modal-title').textContent='Editar Filial';
+  openModal('modal-filial');
+  // Aplica máscaras quando abrir pra editar
+  setTimeout(()=>{
+    const cnpj=document.getElementById('filial-cnpj');if(cnpj){cnpj._maskedFn=null;Mask.bind(cnpj,Mask.cpfCnpj);}
+    const tel=document.getElementById('filial-telefone');if(tel){tel._maskedFn=null;Mask.bind(tel,Mask.tel);}
+  },30);
+}
+function resetFilialForm(){
+  ['filial-id','filial-nome','filial-cnpj','filial-endereco','filial-telefone','filial-email'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('filial-modal-title').textContent='Nova Filial';
+  setTimeout(()=>{
+    const cnpj=document.getElementById('filial-cnpj');if(cnpj)Mask.bind(cnpj,Mask.cpfCnpj);
+    const tel=document.getElementById('filial-telefone');if(tel)Mask.bind(tel,Mask.tel);
+  },30);
+}
+function delFilial(id){
+  // Antes de apagar, desvincula a filial dos contratos que a referenciam (não apaga contratos)
+  const ct=DB.get('contratos').map(c=>c.filialId==id?{...c,filialId:null}:c);
+  DB.set('contratos',ct);
+  DB.set('filiais',DB.get('filiais').filter(x=>x.id!=id));
+  renderFiliais();
+}
+function delFilialConfirm(id){
+  if(confirm('Excluir esta filial? Contratos que a usavam ficarão sem filial vinculada, mas serão preservados.'))delFilial(id);
 }
 
 // ========================
