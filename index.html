@@ -91,6 +91,8 @@ tbody tr:hover td{background:#fafbff;}
 .busca-select-item .qtd-disp{font-size:11px;color:var(--success);font-weight:700;white-space:nowrap;}
 .busca-select-item .qtd-disp.zero{color:var(--danger);}
 .busca-select-vazio{padding:10px 13px;font-size:12.5px;color:var(--muted);text-align:center;}
+.estoque-grupo-item{display:none;background:#fdfdff;}
+.estoque-grupo-item.show{display:table-row;}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
 .form-group{display:flex;flex-direction:column;gap:5px;}
 .form-group.full{grid-column:1/-1;}
@@ -664,6 +666,17 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,166,35,.045)!importan
   </div>
 </div>
 
+<!-- MODAL LOCALIZAÇÃO DO EQUIPAMENTO -->
+<div class="modal-overlay" id="modal-localizacao">
+  <div class="modal">
+    <div class="modal-header"><h3>Localização do equipamento</h3><button class="modal-close" onclick="closeModal('modal-localizacao')">×</button></div>
+    <div class="modal-body" id="localizacao-content"></div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-localizacao')">Fechar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ESTOQUE -->
 <div class="page" id="page-estoque">
   <div class="page-header"><h2>Estoque &amp; Status</h2><p>Monitoramento em tempo real</p></div>
@@ -887,6 +900,10 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,166,35,.045)!importan
     <div class="modal-body">
       <input type="hidden" id="renovar-id">
       <div class="alert alert-info" id="renovar-info"></div>
+      <div style="margin-bottom:16px">
+        <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:8px">Itens a renovar <span style="font-weight:400;text-transform:none;letter-spacing:0">— desmarque os que o cliente vai devolver</span></label>
+        <div id="renovar-itens-list"></div>
+      </div>
       <div class="form-grid">
         <div class="form-group"><label>NOVO INÍCIO</label><input id="renovar-inicio" type="date"></div>
         <div class="form-group"><label>NOVO TÉRMINO</label><input id="renovar-fim" type="date"></div>
@@ -1668,9 +1685,16 @@ function abrirRenovar(id){
   const c=DB.get('contratos').find(x=>x.id===id);if(!c)return;
   const cl=DB.get('clientes').find(x=>x.id===c.clienteId)||{nome:'—'};
   const eq=DB.get('equipamentos');
-  const eqs=c.itens.map(it=>{const e=eq.find(x=>x.id==it.equipId);return e?`${it.qty}x ${e.nome}`:'—';}).join(', ');
   document.getElementById('renovar-id').value=id;
-  document.getElementById('renovar-info').innerHTML=`<b>Contrato #${c.id}</b> — ${cl.nome}<br>${eqs}<br>Período original: ${fmtData(c.inicio)} → ${c.fim?fmtData(c.fim):'sem data fim'}`;
+  document.getElementById('renovar-info').innerHTML=`<b>Contrato #${c.id}</b> — ${cl.nome}<br>Período original: ${fmtData(c.inicio)} → ${c.fim?fmtData(c.fim):'sem data fim'}`;
+  // Renderiza os itens como checkboxes (todos marcados por padrão)
+  document.getElementById('renovar-itens-list').innerHTML=c.itens.map((it,i)=>{
+    const e=eq.find(x=>x.id==it.equipId)||{nome:'—',unidade:'un'};
+    return`<label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1.5px solid var(--border);border-radius:8px;margin-bottom:7px;cursor:pointer;background:var(--surface2)">
+      <input type="checkbox" class="renovar-item-check" data-idx="${i}" checked style="width:18px;height:18px;cursor:pointer;flex-shrink:0">
+      <span style="flex:1"><b>${e.nome}</b> <span style="font-size:12px;color:var(--muted)">— ${it.qty} ${e.unidade||'un'} · R$ ${fmtMoney(it.valor)}/${it.periodo}</span></span>
+    </label>`;
+  }).join('');
   // Novo início = dia após o término (ou hoje se não tiver fim)
   const novoInicio=c.fim&&diasAte(c.fim)<0?hoje():(c.fim?addDias(c.fim,1):hoje());
   document.getElementById('renovar-inicio').value=novoInicio;
@@ -1690,26 +1714,45 @@ function confirmarRenovacao(){
   const inicio=document.getElementById('renovar-inicio').value;
   const fim=document.getElementById('renovar-fim').value;
   if(!inicio){alert('Informe a data de início.');return;}
+  // Descobre quais itens foram marcados pra renovar
+  const marcados=[...document.querySelectorAll('.renovar-item-check')].filter(ch=>ch.checked).map(ch=>parseInt(ch.dataset.idx));
+  if(!marcados.length){alert('Selecione ao menos um item para renovar.');return;}
+  const itensRenovados=marcados.map(i=>c.itens[i]);
+  const itensDevolvidos=c.itens.filter((_,i)=>!marcados.includes(i));
+  const novoTotal=itensRenovados.reduce((s,it)=>s+(it.qty*it.valor*(it.qtdPeriodo||1)),0);
+
   const novoContrato={
-    id:DB.nextId('contratos'),clienteId:c.clienteId,
+    id:DB.nextId('contratos'),clienteId:c.clienteId,filialId:c.filialId||null,
     inicio,fim,
     pagamento:document.getElementById('renovar-pagamento').value,
     status:document.getElementById('renovar-status').value,
-    local:c.local,itens:JSON.parse(JSON.stringify(c.itens)),
-    total:c.total,pago:false,
+    local:c.local,itens:JSON.parse(JSON.stringify(itensRenovados)),
+    total:novoTotal,desconto:0,frete:0,pago:false,
     obs:document.getElementById('renovar-obs').value||`Renovação do contrato #${c.id}.`,
     criadoEm:new Date().toISOString(),renovadoDe:c.id
   };
-  // Atualiza equipamentos em uso
+
   let eq=DB.get('equipamentos');
-  novoContrato.itens.forEach(it=>{eq=eq.map(e=>e.id==it.equipId?{...e,emUso:(e.emUso||0)+it.qty}:e);});
+  // Como o contrato original vai virar "finalizado", TODO o estoque dele será liberado.
+  // Então liberamos tudo do original e reservamos só os itens renovados.
+  // 1) Libera tudo do contrato original (estava reservando enquanto ativo/pendente)
+  if(['ativo','pendente'].includes(c.status)){
+    c.itens.forEach(it=>{eq=eq.map(e=>e.id==it.equipId?{...e,emUso:Math.max(0,(e.emUso||0)-it.qty)}:e);});
+  }
+  // 2) Reserva os itens renovados pro novo contrato (se ele for ativo/pendente)
+  if(['ativo','pendente'].includes(novoContrato.status)){
+    itensRenovados.forEach(it=>{eq=eq.map(e=>e.id==it.equipId?{...e,emUso:(e.emUso||0)+it.qty}:e);});
+  }
   DB.set('equipamentos',eq);
-  // Marca contrato original como finalizado
+
+  // Marca contrato original como finalizado e adiciona o novo
   let cts=DB.get('contratos');
   cts=cts.map(x=>x.id===id?{...x,status:'finalizado'}:x);
   cts.push(novoContrato);DB.set('contratos',cts);
   closeModal('modal-renovar');renderContratos();updateBadges();
-  alert(`Contrato renovado! Novo contrato: #${novoContrato.id}`);
+  if(document.getElementById('page-estoque')?.classList.contains('active'))renderEstoque();
+  const msgDevolvidos=itensDevolvidos.length?`\n${itensDevolvidos.length} item(ns) devolvido(s) ao estoque.`:'';
+  alert(`Contrato renovado! Novo contrato: #${novoContrato.id}${msgDevolvidos}`);
 }
 
 // ========================
@@ -2219,7 +2262,8 @@ function renderEstoque(){
     const d=Math.max(0,e.qty-(e.emUso||0)-(e.manutencao||0));
     const p=e.qty?Math.round((e.emUso||0)/e.qty*100):0;
     const bc=p>80?'var(--danger)':p>50?'var(--accent)':'var(--success)';
-    return`<tr><td>${prefix}<b>${e.nome}</b> <span style="font-size:11px;color:var(--muted)">${e.cat}</span></td><td>${e.qty}</td><td><span class="badge badge-green">${d}</span></td><td><span class="badge badge-orange">${e.emUso||0}</span></td><td><span class="badge badge-red">${e.manutencao||0}</span></td><td><div style="display:flex;align-items:center;gap:7px"><div style="width:75px;height:6px;background:var(--border);border-radius:4px;overflow:hidden"><div style="width:${p}%;height:100%;background:${bc};border-radius:4px"></div></div><span style="font-size:12px;color:var(--muted)">${p}%</span></div></td></tr>`;
+    const temUso=(e.emUso||0)>0;
+    return`<tr style="cursor:pointer" onclick="verLocalizacaoEquip(${e.id})" title="Clique para ver onde está"><td>${prefix}<b>${e.nome}</b> <span style="font-size:11px;color:var(--muted)">${e.cat}</span>${temUso?' <span style="font-size:10px;color:var(--info)">📍 ver locais</span>':''}</td><td>${e.qty}</td><td><span class="badge badge-green">${d}</span></td><td><span class="badge badge-orange">${e.emUso||0}</span></td><td><span class="badge badge-red">${e.manutencao||0}</span></td><td><div style="display:flex;align-items:center;gap:7px"><div style="width:75px;height:6px;background:var(--border);border-radius:4px;overflow:hidden"><div style="width:${p}%;height:100%;background:${bc};border-radius:4px"></div></div><span style="font-size:12px;color:var(--muted)">${p}%</span></div></td></tr>`;
   };
   // Linha de cabeçalho de um grupo (somando os totais)
   const linhaGrupo=(nome,items,gid)=>{
@@ -2240,7 +2284,11 @@ function renderEstoque(){
     const gid='est-'+nome.replace(/[^a-zA-Z0-9]/g,'_');
     html+=linhaGrupo(nome,porGrupo[nome],gid);
     // Linhas individuais (escondidas por padrão, com um espaço pra indentação)
-    html+=porGrupo[nome].map(e=>`<tr class="estoque-grupo-item est-of-${gid}" style="display:none;background:#fdfdff">${linhaItem(e,'<span style="color:#bbb;margin-right:8px">└</span>').replace(/^<tr>|<\/tr>$/g,'')}</tr>`).join('');
+    html+=porGrupo[nome].map(e=>{
+      const linha=linhaItem(e,'<span style="color:#bbb;margin-right:8px">└</span>');
+      // injeta as classes de controle do grupo na <tr> já existente
+      return linha.replace('<tr ','<tr class="estoque-grupo-item est-of-'+gid+'" data-grupo-style ');
+    }).join('');
   });
   html+=semGrupo.map(e=>linhaItem(e)).join('');
   document.getElementById('estoque-tbody').innerHTML=html;
@@ -2249,9 +2297,58 @@ function toggleEstoqueGrupo(gid){
   const a=document.getElementById(gid+'-arrow');
   const items=document.querySelectorAll('.est-of-'+gid);
   if(!items.length)return;
-  const open=items[0].style.display==='none';
-  items.forEach(r=>r.style.display=open?'':'none');
+  const open=!items[0].classList.contains('show');
+  items.forEach(r=>r.classList.toggle('show',open));
   if(a)a.textContent=open?'▴':'▾';
+}
+
+// Mostra em quais contratos/obras um equipamento está alocado no momento
+function verLocalizacaoEquip(equipId){
+  const e=DB.get('equipamentos').find(x=>x.id==equipId);if(!e)return;
+  const cls=DB.get('clientes');
+  // Pega contratos ativos/pendentes que usam esse equipamento
+  const alocacoes=[];
+  DB.get('contratos').forEach(c=>{
+    if(!['ativo','pendente'].includes(c.status))return;
+    (c.itens||[]).forEach(it=>{
+      if(it.equipId==equipId){
+        const cl=cls.find(x=>x.id===c.clienteId)||{nome:'—'};
+        alocacoes.push({contrato:c,cliente:cl.nome,qtd:it.qty});
+      }
+    });
+  });
+  const total=e.qty||0,emUso=e.emUso||0,manut=e.manutencao||0;
+  const disp=Math.max(0,total-emUso-manut);
+  let corpo=`<div style="padding:12px 14px;background:var(--surface2);border-radius:8px;margin-bottom:16px;font-size:13px">
+    <b style="color:var(--text);font-size:15px">${e.nome}</b>${e.grupo?` <span style="font-size:11px;color:var(--muted)">· ${e.grupo}</span>`:''}
+    <div style="margin-top:6px;color:var(--muted);font-size:12.5px">
+      Total: <b style="color:var(--text)">${total}</b> ·
+      Disponível: <b style="color:var(--success)">${disp}</b> ·
+      Em uso: <b style="color:var(--accent2)">${emUso}</b> ·
+      Manutenção: <b style="color:var(--danger)">${manut}</b>
+    </div>
+  </div>`;
+  if(!alocacoes.length){
+    corpo+='<div class="empty-state" style="padding:20px"><p>Este equipamento não está em nenhum contrato ativo ou pendente no momento.</p></div>';
+  }else{
+    corpo+=`<div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Onde está agora (${alocacoes.length} ${alocacoes.length>1?'contratos':'contrato'})</div>`;
+    corpo+=alocacoes.map(a=>{
+      const c=a.contrato;
+      const statusBg={ativo:'badge-green',pendente:'badge-orange'};
+      return`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 13px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;cursor:pointer" onclick="closeModal('modal-localizacao');verContrato(${c.id})">
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:13.5px;color:var(--text)">Contrato #${c.id} — ${a.cliente}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px">${c.local?'📍 '+c.local:'<span style="opacity:.6">Sem local informado</span>'}${c.fim?' · até '+fmtData(c.fim):''}</div>
+        </div>
+        <div style="text-align:right;white-space:nowrap">
+          <span class="badge ${statusBg[c.status]||'badge-gray'}">${c.status}</span>
+          <div style="font-size:13px;font-weight:700;color:var(--accent2);margin-top:3px">${a.qtd} un</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+  document.getElementById('localizacao-content').innerHTML=corpo;
+  openModal('modal-localizacao');
 }
 
 // ========================
