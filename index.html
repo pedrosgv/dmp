@@ -110,7 +110,11 @@ textarea{resize:vertical;min-height:72px;}
 .modal-close{background:none;border:none;color:var(--muted);font-size:21px;cursor:pointer;line-height:1;padding:0;}
 .modal-body{padding:24px;}
 .modal-footer{padding:14px 24px;border-top:1px solid var(--border);display:flex;gap:9px;justify-content:flex-end;position:sticky;bottom:0;background:var(--surface);}
-.equip-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:13px;}
+.equip-grid{display:block;}
+.equip-subgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:13px;}
+.secao-equip-titulo{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;color:var(--text);margin-bottom:12px;display:flex;align-items:center;gap:9px;padding-bottom:8px;border-bottom:2px solid var(--border);}
+.secao-equip-titulo span{background:var(--accent-light);color:var(--accent2);font-family:'DM Sans',sans-serif;font-size:12px;font-weight:700;padding:2px 9px;border-radius:99px;}
+.secao-equip-vazia{font-size:13px;color:var(--muted);padding:14px 16px;background:var(--surface2);border-radius:8px;border:1px dashed var(--border);}
 .equip-card{background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);padding:16px;transition:all .2s;box-shadow:0 1px 3px rgba(20,28,55,.04);}
 /* Card de GRUPO — ocupa linha inteira do grid pra agrupar visualmente os items internos */
 .equip-group{grid-column:1 / -1;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--radius);box-shadow:0 1px 3px rgba(20,28,55,.04);overflow:hidden;}
@@ -317,6 +321,7 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,166,35,.045)!importan
 
   /* Cards de equipamentos: 1 por linha */
   .equip-grid{grid-template-columns:1fr!important;}
+  .equip-subgrid{grid-template-columns:1fr!important;}
   .equip-group-body{grid-template-columns:1fr!important;padding:12px 14px!important;}
   .equip-group-header{padding:12px 14px!important;}
 
@@ -755,6 +760,7 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,166,35,.045)!importan
         <div class="form-group"><label>VALOR SEMANAL (R$)</label><input id="equip-semanal" type="number" min="0" step="0.01" placeholder="0,00"></div>
         <div class="form-group"><label>VALOR MENSAL (R$)</label><input id="equip-mensal" type="number" min="0" step="0.01" placeholder="0,00"></div>
         <div class="form-group"><label>STATUS</label><select id="equip-status"><option value="disponivel">Disponível</option><option value="manutencao">Em Manutenção</option><option value="inativo">Inativo</option></select></div>
+        <div class="form-group"><label>TIPO DE CONTROLE</label><select id="equip-tipo-controle"><option value="quantidade">Em quantidade (ex: andaimes)</option><option value="individual">Individual (ex: betoneira, contêiner)</option></select></div>
         <div class="form-group full"><label>GRUPO <span style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(opcional — equipamentos com o mesmo grupo aparecem agrupados no catálogo e no estoque)</span></label><input id="equip-grupo" list="grupos-existentes" placeholder="Ex: Betoneiras 400L"><datalist id="grupos-existentes"></datalist></div>
         <div class="form-group full"><label>DESCRIÇÃO / OBSERVAÇÕES</label><textarea id="equip-desc" placeholder="Detalhes técnicos, capacidade..."></textarea></div>
       </div>
@@ -1010,7 +1016,7 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSess
 
 // Mapeamento JS<->DB: como o banco usa snake_case e o JS usa camelCase, normalizamos
 const FIELD_MAP={
-  equipamentos:{toDb:o=>({id:o.id,nome:o.nome,cat:o.cat,qty:o.qty,em_uso:o.emUso||0,manutencao:o.manutencao||0,diario:o.diario,semanal:o.semanal,mensal:o.mensal,unidade:o.unidade,status:o.status,descricao:o.desc||'',grupo:o.grupo||null}),fromDb:r=>({id:r.id,nome:r.nome,cat:r.cat,qty:r.qty,emUso:r.em_uso,manutencao:r.manutencao,diario:Number(r.diario),semanal:Number(r.semanal),mensal:Number(r.mensal),unidade:r.unidade,status:r.status,desc:r.descricao||'',grupo:r.grupo||''})},
+  equipamentos:{toDb:o=>({id:o.id,nome:o.nome,cat:o.cat,qty:o.qty,em_uso:o.emUso||0,manutencao:o.manutencao||0,diario:o.diario,semanal:o.semanal,mensal:o.mensal,unidade:o.unidade,status:o.status,descricao:o.desc||'',grupo:o.grupo||null,tipo_controle:o.tipoControle||'quantidade'}),fromDb:r=>({id:r.id,nome:r.nome,cat:r.cat,qty:r.qty,emUso:r.em_uso,manutencao:r.manutencao,diario:Number(r.diario),semanal:Number(r.semanal),mensal:Number(r.mensal),unidade:r.unidade,status:r.status,desc:r.descricao||'',grupo:r.grupo||'',tipoControle:r.tipo_controle||'quantidade'})},
   clientes:{toDb:o=>({id:o.id,nome:o.nome,tipo:o.tipo,doc:o.doc,rg:o.rg,tel:o.tel,email:o.email,endereco:o.end,obs:o.obs}),fromDb:r=>({id:r.id,nome:r.nome,tipo:r.tipo,doc:r.doc,rg:r.rg,tel:r.tel,email:r.email,end:r.endereco,obs:r.obs})},
   contratos:{toDb:o=>({id:o.id,cliente_id:o.clienteId,inicio:o.inicio,fim:o.fim||null,pagamento:o.pagamento,status:o.status,local:o.local,itens:o.itens||[],total:o.total||0,desconto:o.desconto||0,frete:o.frete||0,pago:!!o.pago,obs:o.obs,renovado_de:o.renovadoDe||null,filial_id:o.filialId||null}),fromDb:r=>({id:r.id,clienteId:r.cliente_id,inicio:r.inicio,fim:r.fim,pagamento:r.pagamento,status:r.status,local:r.local,itens:r.itens||[],total:Number(r.total),desconto:Number(r.desconto||0),frete:Number(r.frete||0),pago:r.pago,obs:r.obs,criadoEm:r.created_at,renovadoDe:r.renovado_de,filialId:r.filial_id})},
   manutencoes:{toDb:o=>({id:o.id,equip_id:o.equipId,data:o.data,tipo:o.tipo,valor:o.valor||0,responsavel:o.resp,descricao:o.desc,revisao_concluida:!!o.revisaoConcluida}),fromDb:r=>({id:r.id,equipId:r.equip_id,data:r.data,tipo:r.tipo,valor:Number(r.valor),resp:r.responsavel,desc:r.descricao,revisaoConcluida:r.revisao_concluida})},
@@ -1256,11 +1262,23 @@ function renderEquipamentos(q=''){
       <div class="equip-group-body" id="${gid}" style="display:none">${detalhesHTML}</div>
     </div>`;
   };
-  // Monta o HTML final: primeiro grupos (ordenados), depois individuais
-  const html=[
-    ...Object.keys(porGrupo).sort().map(nome=>renderGrupo(nome,porGrupo[nome])),
-    ...semGrupo.map(renderIndividual)
-  ].join('');
+  // Monta o HTML de uma seção (grupos + individuais) a partir de uma lista de equipamentos
+  const montarSecao=lista=>{
+    const pG={};const sG=[];
+    lista.forEach(e=>{if(e.grupo&&e.grupo.trim())(pG[e.grupo]=pG[e.grupo]||[]).push(e);else sG.push(e);});
+    return [
+      ...Object.keys(pG).sort().map(nome=>renderGrupo(nome,pG[nome])),
+      ...sG.map(renderIndividual)
+    ].join('');
+  };
+  // Divide os equipamentos pelos dois tipos de controle
+  const individuais=eq.filter(e=>e.tipoControle==='individual');
+  const emQuantidade=eq.filter(e=>e.tipoControle!=='individual');
+  let html='';
+  html+=`<div class="secao-equip-titulo">Equipamentos Individuais <span>${individuais.length}</span></div>`;
+  html+=individuais.length?`<div class="equip-subgrid">${montarSecao(individuais)}</div>`:'<div class="secao-equip-vazia">Nenhum equipamento individual. Edite um equipamento e marque o tipo como "Individual".</div>';
+  html+=`<div class="secao-equip-titulo" style="margin-top:26px">Equipamentos em Quantidade <span>${emQuantidade.length}</span></div>`;
+  html+=emQuantidade.length?`<div class="equip-subgrid">${montarSecao(emQuantidade)}</div>`:'<div class="secao-equip-vazia">Nenhum equipamento em quantidade.</div>';
   g.innerHTML=html;
 }
 function toggleGrupo(id){
@@ -1272,7 +1290,7 @@ function toggleGrupo(id){
 }
 function salvarEquip(){
   const id=document.getElementById('equip-id').value;
-  const obj={id:id?parseInt(id):DB.nextId('equipamentos'),nome:document.getElementById('equip-nome').value.trim(),cat:document.getElementById('equip-cat').value,qty:parseInt(document.getElementById('equip-qty').value)||1,emUso:id?(DB.get('equipamentos').find(e=>e.id==id)||{}).emUso||0:0,manutencao:0,diario:parseFloat(document.getElementById('equip-diario').value)||0,semanal:parseFloat(document.getElementById('equip-semanal').value)||0,mensal:parseFloat(document.getElementById('equip-mensal').value)||0,unidade:document.getElementById('equip-unidade').value||'un',status:document.getElementById('equip-status').value,desc:document.getElementById('equip-desc').value,grupo:document.getElementById('equip-grupo').value.trim()};
+  const obj={id:id?parseInt(id):DB.nextId('equipamentos'),nome:document.getElementById('equip-nome').value.trim(),cat:document.getElementById('equip-cat').value,qty:parseInt(document.getElementById('equip-qty').value)||1,emUso:id?(DB.get('equipamentos').find(e=>e.id==id)||{}).emUso||0:0,manutencao:0,diario:parseFloat(document.getElementById('equip-diario').value)||0,semanal:parseFloat(document.getElementById('equip-semanal').value)||0,mensal:parseFloat(document.getElementById('equip-mensal').value)||0,unidade:document.getElementById('equip-unidade').value||'un',status:document.getElementById('equip-status').value,desc:document.getElementById('equip-desc').value,grupo:document.getElementById('equip-grupo').value.trim(),tipoControle:document.getElementById('equip-tipo-controle').value};
   if(!obj.nome){alert('Informe o nome.');return;}
   let eq=DB.get('equipamentos');if(id)eq=eq.map(e=>e.id==id?obj:e);else eq.push(obj);
   DB.set('equipamentos',eq);closeModal('modal-equip');resetEquipForm();renderEquipamentos();
@@ -1282,6 +1300,7 @@ function editEquip(id){
   const e=DB.get('equipamentos').find(x=>x.id==id);if(!e)return;
   document.getElementById('equip-id').value=e.id;
   ['nome','cat','qty','diario','semanal','mensal','unidade','status','desc','grupo'].forEach(f=>document.getElementById('equip-'+f).value=e[f]||'');
+  document.getElementById('equip-tipo-controle').value=e.tipoControle||'quantidade';
   document.getElementById('equip-modal-title').textContent='Editar Equipamento';openModal('modal-equip');
 }
 function delEquip(id){DB.set('equipamentos',DB.get('equipamentos').filter(e=>e.id!=id));renderEquipamentos();}
@@ -1357,7 +1376,7 @@ function confirmarAjusteEstoque(){
   if(document.getElementById('page-manutencao')?.classList.contains('active'))renderManutencao();
 }
 
-function resetEquipForm(){['equip-id','equip-nome','equip-diario','equip-semanal','equip-mensal','equip-unidade','equip-desc','equip-grupo'].forEach(i=>document.getElementById(i).value='');document.getElementById('equip-qty').value=1;document.getElementById('equip-modal-title').textContent='Novo Equipamento';popularGruposDatalist();}
+function resetEquipForm(){['equip-id','equip-nome','equip-diario','equip-semanal','equip-mensal','equip-unidade','equip-desc','equip-grupo'].forEach(i=>document.getElementById(i).value='');document.getElementById('equip-qty').value=1;document.getElementById('equip-tipo-controle').value='quantidade';document.getElementById('equip-modal-title').textContent='Novo Equipamento';popularGruposDatalist();}
 // Preenche o datalist com grupos já cadastrados, pra facilitar reuso
 function popularGruposDatalist(){
   const dl=document.getElementById('grupos-existentes');if(!dl)return;
