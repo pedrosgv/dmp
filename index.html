@@ -1474,13 +1474,13 @@ function disponibilidadeEquip(equipId,ignorarIndiceItem){
   let reservado=0;
   DB.get('contratos').forEach(c=>{
     if(!['ativo','pendente'].includes(c.status))return;
-    (c.itens||[]).forEach(it=>{if(it.equipId==equipId)reservado+=it.qty||0;});
+    (c.itens||[]).forEach(it=>{if(it.equipId==equipId)reservado+=Math.max(0,(it.qty||0)-(it.terc||0));});
   });
   // Soma o que este contrato em edição já está usando deste equipamento (menos o item atual)
   let usadoNesteForm=0;
   contratoItens.forEach((it,idx)=>{
     if(idx===ignorarIndiceItem)return;
-    if(it.equipId==equipId)usadoNesteForm+=it.qty||0;
+    if(it.equipId==equipId)usadoNesteForm+=Math.max(0,(it.qty||0)-(it.terc||0));
   });
   return Math.max(0,total-manut-reservado-usadoNesteForm);
 }
@@ -1524,17 +1524,24 @@ function selecionarCliente(id){
   document.getElementById('lista-cliente-busca').classList.remove('show');
 }
 
-function addContratoItem(){contratoItens.push({equipId:'',qty:1,periodo:'diario',qtdPeriodo:1,valor:0});renderContratoItens();}
+function addContratoItem(){contratoItens.push({equipId:'',qty:1,terc:0,periodo:'diario',qtdPeriodo:1,valor:0});renderContratoItens();}
 function renderContratoItens(){
   const div=document.getElementById('contrato-itens-list');
   if(!contratoItens.length){div.innerHTML='<p class="text-muted" style="padding:6px 0">Clique em "+ Adicionar Item".</p>';atualizarTotal();return;}
   div.innerHTML=contratoItens.map((it,i)=>{
     const pl=it.periodo==='diario'?'Dia(s)':it.periodo==='semanal'?'Semana(s)':'Mês/Meses';
-    const sub=it.qty*it.valor*(it.qtdPeriodo||1);
     const eqSel=it.equipId?DB.get('equipamentos').find(e=>e.id==it.equipId):null;
     const dispAtual=it.equipId?disponibilidadeEquip(it.equipId,i):0;
+    // Normaliza terceirizado: no mínimo o excedente sobre o estoque próprio, no máximo a qtde total
+    let terc=it.terc||0;
+    const minTerc=it.equipId?Math.max(0,(it.qty||0)-dispAtual):0;
+    if(terc<minTerc)terc=minTerc;
+    if(terc>it.qty)terc=it.qty;
+    it.terc=terc;
+    const proprio=(it.qty||0)-terc;
+    const sub=it.qty*it.valor*(it.qtdPeriodo||1);
     return`<div style="background:var(--surface2);border:1.5px solid var(--border);border-radius:10px;padding:13px;margin-bottom:9px">
-      <div style="display:grid;grid-template-columns:2.2fr 0.7fr 1fr 0.85fr 1fr auto;gap:9px;align-items:end">
+      <div style="display:grid;grid-template-columns:2.2fr 0.7fr 0.7fr 1fr 0.85fr 1fr auto;gap:9px;align-items:end">
         <div class="form-group"><label>EQUIPAMENTO</label>
           <div class="busca-select">
             <input type="text" id="eq-busca-${i}" placeholder="Buscar equipamento..." autocomplete="off"
@@ -1543,7 +1550,8 @@ function renderContratoItens(){
             <div class="busca-select-lista" id="lista-eq-busca-${i}"></div>
           </div>
         </div>
-        <div class="form-group"><label>QTDE</label><input type="number" min="1" max="${dispAtual||999999}" value="${it.qty}" oninput="ajustarQtdItem(${i},this)"></div>
+        <div class="form-group"><label>QTDE</label><input type="number" min="1" value="${it.qty}" onchange="ajustarQtdItem(${i},this)"></div>
+        <div class="form-group"><label title="Unidades alugadas de outra locadora — não descontam do seu estoque">TERCEIR.</label><input type="number" min="0" max="${it.qty}" value="${terc}" onchange="ajustarTercItem(${i},this)" title="Unidades alugadas de outra locadora — não descontam do seu estoque"></div>
         <div class="form-group"><label>PERÍODO</label>
           <select onchange="contratoItens[${i}].periodo=this.value;calcItemValor(${i})">
             <option value="diario" ${it.periodo==='diario'?'selected':''}>Diário</option>
@@ -1555,24 +1563,25 @@ function renderContratoItens(){
         <div class="form-group"><label>VALOR UNIT. R$</label><input type="number" step="0.01" value="${it.valor}" oninput="contratoItens[${i}].valor=parseFloat(this.value)||0;atualizarTotal()" id="vi-${i}"></div>
         <button class="btn btn-danger btn-sm" style="align-self:end;margin-bottom:1px" onclick="removeContratoItem(${i})">✕</button>
       </div>
-      ${it.equipId?`<div style="margin-top:6px;font-size:11.5px;color:var(--muted)">${dispAtual>0?`<span style="color:var(--success);font-weight:600">${dispAtual} disponível(is)</span> para esta locação`:`<span style="color:var(--danger);font-weight:600">Esgotado</span> — sem unidades livres`}</div>`:''}
+      ${it.equipId?`<div style="margin-top:6px;font-size:11.5px;color:var(--muted)">${dispAtual>0?`<span style="color:var(--success);font-weight:600">${dispAtual} disponível(is)</span> no seu estoque`:`<span style="color:var(--danger);font-weight:600">Sem estoque próprio</span>`}${terc>0?` · <span style="color:var(--info);font-weight:600">${proprio} própria(s) + ${terc} terceirizada(s)</span>`:''}</div>`:''}
       <div style="margin-top:5px;font-size:12px;color:var(--muted)">Subtotal: <b style="color:var(--accent2)">R$ ${fmtMoney(sub)}</b> (${it.qty} × R$ ${fmtMoney(it.valor)} × ${it.qtdPeriodo||1} ${pl.toLowerCase()})</div>
     </div>`;
   }).join('');
   atualizarTotal();
 }
 
-// Impede digitar quantidade acima do disponível
+// Ajusta a quantidade total do item. O excedente sobre o estoque próprio vira
+// automaticamente "terceirizado" (a normalização acontece em renderContratoItens).
 function ajustarQtdItem(i,input){
-  let q=parseInt(input.value)||1;
-  const disp=disponibilidadeEquip(contratoItens[i].equipId,i);
-  if(contratoItens[i].equipId&&q>disp){
-    q=disp>0?disp:1;
-    input.value=q;
-    alert(`Só há ${disp} unidade(s) disponível(is) deste equipamento.`);
-  }
+  let q=parseInt(input.value)||1;if(q<1)q=1;
   contratoItens[i].qty=q;
-  atualizarTotal();
+  renderContratoItens();
+}
+// Ajusta manualmente quantas unidades do item são terceirizadas (0..qtde total).
+function ajustarTercItem(i,input){
+  let t=parseInt(input.value)||0;if(t<0)t=0;
+  contratoItens[i].terc=t;
+  renderContratoItens();
 }
 
 // ---- BUSCA DE EQUIPAMENTO ----
@@ -1587,9 +1596,9 @@ function filtrarEquipBusca(i){
     lista.innerHTML=equips.slice(0,80).map(e=>{
       const disp=disponibilidadeEquip(e.id,i);
       const esgotado=disp<=0;
-      return`<div class="busca-select-item ${esgotado?'esgotado':''}" ${esgotado?'':`onclick="selecionarEquip(${i},${e.id})"`}>
+      return`<div class="busca-select-item" onclick="selecionarEquip(${i},${e.id})">
         <span>${e.nome}${e.grupo?` <span style="font-size:10.5px;color:var(--muted)">· ${e.grupo}</span>`:''}</span>
-        <span class="qtd-disp ${esgotado?'zero':''}">${esgotado?'(esgotado)':disp+' disponível(is)'}</span>
+        <span class="qtd-disp ${esgotado?'zero':''}">${esgotado?'sem estoque — terceirizar':disp+' disponível(is)'}</span>
       </div>`;
     }).join('');
   }
@@ -1623,10 +1632,10 @@ function salvarContrato(){
   for(let i=0;i<contratoItens.length;i++){
     const it=contratoItens[i];
     const disp=disponibilidadeEquip(it.equipId,i);
-    if(it.qty>disp){
-      const e=DB.get('equipamentos').find(x=>x.id==it.equipId);
-      alert(`Não há ${it.qty} unidade(s) disponível(is) de "${e?.nome||'equipamento'}". Disponível agora: ${disp}.`);
-      return;
+    const proprio=(it.qty||0)-(it.terc||0);
+    if(proprio>disp){
+      // Segurança: joga o excedente do estoque próprio para terceirizado
+      it.terc=(it.qty||0)-disp;
     }
   }
   const subtotal=contratoItens.reduce((s,it)=>s+(it.qty*it.valor*(it.qtdPeriodo||1)),0);
@@ -2277,7 +2286,7 @@ function recalcularEmUso(){
   const uso={};
   DB.get('contratos').forEach(c=>{
     if(!['ativo','pendente'].includes(c.status))return;
-    (c.itens||[]).forEach(it=>{uso[it.equipId]=(uso[it.equipId]||0)+(Number(it.qty)||0);});
+    (c.itens||[]).forEach(it=>{uso[it.equipId]=(uso[it.equipId]||0)+Math.max(0,(Number(it.qty)||0)-(Number(it.terc)||0));});
   });
   let mudou=false;
   const eq=DB.get('equipamentos').map(e=>{
@@ -2351,8 +2360,11 @@ function verLocalizacaoEquip(equipId){
     if(!['ativo','pendente'].includes(c.status))return;
     (c.itens||[]).forEach(it=>{
       if(it.equipId==equipId){
-        const cl=cls.find(x=>x.id===c.clienteId)||{nome:'—'};
-        alocacoes.push({contrato:c,cliente:cl.nome,qtd:it.qty});
+        const proprio=(it.qty||0)-(it.terc||0);
+        if(proprio>0){
+          const cl=cls.find(x=>x.id===c.clienteId)||{nome:'—'};
+          alocacoes.push({contrato:c,cliente:cl.nome,qtd:proprio});
+        }
       }
     });
   });
