@@ -690,7 +690,7 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
 
 <!-- ESTOQUE -->
 <div class="page" id="page-estoque">
-  <div class="page-header"><h2>Estoque &amp; Status</h2><p>Monitoramento em tempo real</p></div>
+  <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap"><div><h2>Estoque &amp; Status</h2><p>Monitoramento em tempo real</p></div><button class="btn btn-ghost btn-sm" onclick="recalcularEstoqueManual()" title="Recalcula o 'em uso' a partir dos contratos ativos/pendentes">↻ Recalcular estoque</button></div>
   <div class="card"><div class="card-body">
     <table><thead><tr><th>Equipamento</th><th>Total</th><th>Disponível</th><th>Em Uso</th><th>Manutenção</th><th>Taxa de Uso</th></tr></thead>
     <tbody id="estoque-tbody"></tbody></table>
@@ -1635,8 +1635,8 @@ function salvarContrato(){
   const total=Math.max(0,subtotal-desconto+frete);
   const filialId=parseInt(document.getElementById('contrato-filial').value)||null;
   const obj={id:DB.nextId('contratos'),clienteId:cId,filialId,inicio:document.getElementById('contrato-inicio').value,fim:document.getElementById('contrato-fim').value,pagamento:document.getElementById('contrato-pagamento').value,status:document.getElementById('contrato-status').value,local:document.getElementById('contrato-local').value,itens:JSON.parse(JSON.stringify(contratoItens)),total,desconto,frete,pago:false,pagamentos:[],obs:document.getElementById('contrato-obs').value,criadoEm:new Date().toISOString(),renovadoDe:null};
-  let eq=DB.get('equipamentos');obj.itens.forEach(it=>{eq=eq.map(e=>e.id==it.equipId?{...e,emUso:(e.emUso||0)+it.qty}:e);});DB.set('equipamentos',eq);
   let ct=DB.get('contratos');ct.push(obj);DB.set('contratos',ct);
+  recalcularEmUso();
   closeModal('modal-contrato');contratoItens=[];document.getElementById('contrato-desconto').value='';document.getElementById('contrato-frete').value='';renderContratos();updateBadges();
 }
 
@@ -1688,25 +1688,18 @@ function renderContratos(q=''){
   updateBadges();
 }
 function delContrato(id){
-  const c=DB.get('contratos').find(x=>x.id==id);
-  if(c){let eq=DB.get('equipamentos');c.itens.forEach(it=>{eq=eq.map(e=>e.id==it.equipId?{...e,emUso:Math.max(0,(e.emUso||0)-it.qty)}:e);});DB.set('equipamentos',eq);}
-  DB.set('contratos',DB.get('contratos').filter(c=>c.id!=id));renderContratos();updateBadges();
+  DB.set('contratos',DB.get('contratos').filter(c=>c.id!=id));
+  recalcularEmUso();
+  renderContratos();updateBadges();
 }
 // Altera o status do contrato e mantém a contagem de "em uso" do estoque coerente.
 // Regra: contratos "ativo" e "pendente" reservam estoque; "finalizado" e "cancelado" liberam.
 function alterarStatus(id,novo){
   const ct=DB.get('contratos');
   const c=ct.find(x=>x.id==id);if(!c)return;
-  const antigo=c.status;if(antigo===novo)return;
-  const reservaAntes=['ativo','pendente'].includes(antigo);
-  const reservaDepois=['ativo','pendente'].includes(novo);
-  if(reservaAntes!==reservaDepois){
-    let eq=DB.get('equipamentos');
-    const sinal=reservaDepois?1:-1;
-    c.itens.forEach(it=>{eq=eq.map(e=>e.id==it.equipId?{...e,emUso:Math.max(0,(e.emUso||0)+sinal*it.qty)}:e);});
-    DB.set('equipamentos',eq);
-  }
+  if(c.status===novo)return;
   DB.set('contratos',ct.map(x=>x.id==id?{...x,status:novo}:x));
+  recalcularEmUso();
   renderContratos();updateBadges();
   if(document.getElementById('page-financeiro')?.classList.contains('active'))renderFinanceiro();
   if(document.getElementById('page-estoque')?.classList.contains('active'))renderEstoque();
@@ -1766,23 +1759,12 @@ function confirmarRenovacao(){
     criadoEm:new Date().toISOString(),renovadoDe:c.id
   };
 
-  let eq=DB.get('equipamentos');
-  // Como o contrato original vai virar "finalizado", TODO o estoque dele será liberado.
-  // Então liberamos tudo do original e reservamos só os itens renovados.
-  // 1) Libera tudo do contrato original (estava reservando enquanto ativo/pendente)
-  if(['ativo','pendente'].includes(c.status)){
-    c.itens.forEach(it=>{eq=eq.map(e=>e.id==it.equipId?{...e,emUso:Math.max(0,(e.emUso||0)-it.qty)}:e);});
-  }
-  // 2) Reserva os itens renovados pro novo contrato (se ele for ativo/pendente)
-  if(['ativo','pendente'].includes(novoContrato.status)){
-    itensRenovados.forEach(it=>{eq=eq.map(e=>e.id==it.equipId?{...e,emUso:(e.emUso||0)+it.qty}:e);});
-  }
-  DB.set('equipamentos',eq);
-
   // Marca contrato original como finalizado e adiciona o novo
   let cts=DB.get('contratos');
   cts=cts.map(x=>x.id===id?{...x,status:'finalizado'}:x);
   cts.push(novoContrato);DB.set('contratos',cts);
+  // Reconcilia o estoque a partir dos contratos (fonte de verdade)
+  recalcularEmUso();
   closeModal('modal-renovar');renderContratos();updateBadges();
   if(document.getElementById('page-estoque')?.classList.contains('active'))renderEstoque();
   const msgDevolvidos=itensDevolvidos.length?`\n${itensDevolvidos.length} item(ns) devolvido(s) ao estoque.`:'';
@@ -2289,6 +2271,29 @@ function resetTemplate(){DB.set('template',TPL_DEF);renderTemplate();}
 // ========================
 // ESTOQUE
 // ========================
+// Reconcilia o "em uso" de cada equipamento a partir dos contratos ativos/pendentes
+// (fonte de verdade). Corrige qualquer defasagem do contador e evita drift permanente.
+function recalcularEmUso(){
+  const uso={};
+  DB.get('contratos').forEach(c=>{
+    if(!['ativo','pendente'].includes(c.status))return;
+    (c.itens||[]).forEach(it=>{uso[it.equipId]=(uso[it.equipId]||0)+(Number(it.qty)||0);});
+  });
+  let mudou=false;
+  const eq=DB.get('equipamentos').map(e=>{
+    const novo=uso[e.id]||0;
+    if((e.emUso||0)!==novo){mudou=true;return{...e,emUso:novo};}
+    return e;
+  });
+  if(mudou)DB.set('equipamentos',eq);
+  return mudou;
+}
+// Botão manual (tela de Estoque) — recalcula e avisa o resultado.
+function recalcularEstoqueManual(){
+  const mudou=recalcularEmUso();
+  renderEstoque();updateBadges();
+  alert(mudou?'Estoque recalculado! O "em uso" foi corrigido a partir dos contratos ativos/pendentes.':'Estoque já estava correto — nada a ajustar.');
+}
 function renderEstoque(){
   const eq=DB.get('equipamentos');
   // Linha de um item individual (mesmo formato de antes)
@@ -2735,6 +2740,7 @@ async function iniciarApp(){
   try{
     await loadAllFromCloud();
     await seedIfEmpty();
+    recalcularEmUso(); // reconcilia "em uso" com os contratos a cada carga (auto-corrige defasagens)
     const {data:{user}}=await sb.auth.getUser();
     const u=document.getElementById('logged-user');if(u&&user)u.textContent=user.email;
     renderDashboard();updateBadges();
