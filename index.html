@@ -2161,7 +2161,8 @@ function renderManutencao(){
   });
 
   let alertasHtml='';
-  const rows=eq.map(e=>{
+  // Acompanhamento de revisão: só equipamentos de controle INDIVIDUAL (os em quantidade não entram)
+  const rows=eq.filter(e=>e.tipoControle==='individual').map(e=>{
     const ultima=equipRevisao[e.id];
     const proxData=ultima?addDias(ultima.data,180):null;
     const dias=proxData?diasAte(proxData):null;
