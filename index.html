@@ -832,6 +832,15 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
   <div class="modal">
     <div class="modal-header"><h3 id="info-equip-title">Informações</h3><button class="modal-close" onclick="closeModal('modal-info-equip')">×</button></div>
     <div class="modal-body">
+      <div style="text-align:center;margin-bottom:18px">
+        <img id="info-foto-preview" style="display:none;max-width:200px;max-height:200px;border-radius:10px;border:1px solid var(--border);object-fit:cover">
+        <div id="info-foto-vazio" style="width:200px;height:120px;margin:0 auto;border:1px dashed var(--border);border-radius:10px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:13px">Sem foto</div>
+        <input type="file" id="info-foto-input" accept="image/*" style="display:none" onchange="carregarFotoEquip(event)">
+        <div style="margin-top:10px;display:flex;gap:8px;justify-content:center">
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('info-foto-input').click()">📷 Escolher foto</button>
+          <button class="btn btn-ghost btn-sm" id="info-foto-remover" onclick="removerFotoEquip()" style="display:none">Remover foto</button>
+        </div>
+      </div>
       <p style="color:var(--muted);font-size:13px;margin:0 0 14px">Especificação de cada peça desta betoneira. Clique no campo para ver as opções ou digite uma diferente.</p>
       <div id="info-comp-list"></div>
     </div>
@@ -1113,7 +1122,7 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSess
 
 // Mapeamento JS<->DB: como o banco usa snake_case e o JS usa camelCase, normalizamos
 const FIELD_MAP={
-  equipamentos:{toDb:o=>({id:o.id,nome:o.nome,cat:o.cat,qty:o.qty,em_uso:o.emUso||0,manutencao:o.manutencao||0,diario:o.diario,semanal:o.semanal,mensal:o.mensal,unidade:o.unidade,status:o.status,descricao:o.desc||'',grupo:o.grupo||null,tipo_controle:o.tipoControle||'quantidade',componentes:o.componentes||[]}),fromDb:r=>({id:r.id,nome:r.nome,cat:r.cat,qty:r.qty,emUso:r.em_uso,manutencao:r.manutencao,diario:Number(r.diario),semanal:Number(r.semanal),mensal:Number(r.mensal),unidade:r.unidade,status:r.status,desc:r.descricao||'',grupo:r.grupo||'',tipoControle:r.tipo_controle||'quantidade',componentes:r.componentes||[]})},
+  equipamentos:{toDb:o=>({id:o.id,nome:o.nome,cat:o.cat,qty:o.qty,em_uso:o.emUso||0,manutencao:o.manutencao||0,diario:o.diario,semanal:o.semanal,mensal:o.mensal,unidade:o.unidade,status:o.status,descricao:o.desc||'',grupo:o.grupo||null,tipo_controle:o.tipoControle||'quantidade',componentes:o.componentes||[],foto:o.foto||null}),fromDb:r=>({id:r.id,nome:r.nome,cat:r.cat,qty:r.qty,emUso:r.em_uso,manutencao:r.manutencao,diario:Number(r.diario),semanal:Number(r.semanal),mensal:Number(r.mensal),unidade:r.unidade,status:r.status,desc:r.descricao||'',grupo:r.grupo||'',tipoControle:r.tipo_controle||'quantidade',componentes:r.componentes||[],foto:r.foto||''})},
   clientes:{toDb:o=>({id:o.id,nome:o.nome,tipo:o.tipo,doc:o.doc,rg:o.rg,tel:o.tel,email:o.email,endereco:o.end,obs:o.obs}),fromDb:r=>({id:r.id,nome:r.nome,tipo:r.tipo,doc:r.doc,rg:r.rg,tel:r.tel,email:r.email,end:r.endereco,obs:r.obs})},
   contratos:{toDb:o=>({id:o.id,cliente_id:o.clienteId,inicio:o.inicio,fim:o.fim||null,pagamento:o.pagamento,status:o.status,local:o.local,itens:o.itens||[],total:o.total||0,desconto:o.desconto||0,frete:o.frete||0,pago:!!o.pago,pagamentos:o.pagamentos||[],obs:o.obs,para_retirada:!!o.paraRetirada,renovado_de:o.renovadoDe||null,filial_id:o.filialId||null}),fromDb:r=>({id:r.id,clienteId:r.cliente_id,inicio:r.inicio,fim:r.fim,pagamento:r.pagamento,status:r.status,local:r.local,itens:r.itens||[],total:Number(r.total),desconto:Number(r.desconto||0),frete:Number(r.frete||0),pago:r.pago,pagamentos:r.pagamentos||[],obs:r.obs,criadoEm:r.created_at,paraRetirada:!!r.para_retirada,renovadoDe:r.renovado_de,filialId:r.filial_id})},
   manutencoes:{toDb:o=>({id:o.id,equip_id:o.equipId,data:o.data,tipo:o.tipo,valor:o.valor||0,responsavel:o.resp,descricao:o.desc,revisao_concluida:!!o.revisaoConcluida,itens_feitos:o.itensFeitos||[]}),fromDb:r=>({id:r.id,equipId:r.equip_id,data:r.data,tipo:r.tipo,valor:Number(r.valor),resp:r.responsavel,desc:r.descricao,revisaoConcluida:r.revisao_concluida,itensFeitos:r.itens_feitos||[]})},
@@ -2204,7 +2213,7 @@ function renderManutencao(){
     const totalGasto=manuts.filter(m=>m.equipId===e.id).reduce((s,m)=>s+(m.valor||0),0);
     const infoBtn=(e.cat||'').toLowerCase().includes('betoneira')?` <button class="btn btn-ghost btn-sm" onclick="abrirInfoEquip(${e.id})">Informações</button>`:'';
     return`<tr>
-      <td><b>${e.nome}</b><br><span style="font-size:11px;color:var(--muted)">${e.cat}</span></td>
+      <td><div style="display:flex;align-items:center;gap:9px">${e.foto?`<img src="${e.foto}" style="width:40px;height:40px;object-fit:cover;border-radius:7px;flex:0 0 auto">`:''}<div><b>${e.nome}</b><br><span style="font-size:11px;color:var(--muted)">${e.cat}</span></div></div></td>
       <td>${ultima?fmtData(ultima.data):'—'}</td>
       <td>${proxData?fmtData(proxData):'—'}
         ${proxData?`<div class="prog-bar"><div class="prog-fill" style="width:${Math.min(barPct,100)}%;background:${barColor}"></div></div>`:''}
@@ -2245,10 +2254,13 @@ const COMP_BETONEIRA=[
   {el:'Pinhão de Ataque',opts:['Menegotti 11 Dentes Furo 17mm','CSM 11 Dentes Furo 19mm','Metalpama 12 Dentes Furo 20mm','Metalpama 13 Dentes Furo 20mm']},
 ];
 let _infoEquipId=null;
+let _infoFotoAtual='';
 function abrirInfoEquip(id){
   const e=DB.get('equipamentos').find(x=>x.id==id);if(!e)return;
   _infoEquipId=id;
   document.getElementById('info-equip-title').textContent='Informações — '+e.nome;
+  _infoFotoAtual=e.foto||'';
+  mostrarFotoPreview(_infoFotoAtual);
   const list=document.getElementById('info-comp-list');list.innerHTML='';
   const salvos=e.componentes||[];
   COMP_BETONEIRA.forEach((c,i)=>{
@@ -2266,10 +2278,37 @@ function abrirInfoEquip(id){
 function salvarInfoEquip(){
   if(!_infoEquipId)return;
   const comps=[...document.querySelectorAll('#info-comp-list .form-group')].map(r=>({elemento:r.dataset.elemento,tipo:r.querySelector('.info-comp-tp').value.trim()})).filter(c=>c.tipo);
-  DB.set('equipamentos',DB.get('equipamentos').map(e=>e.id==_infoEquipId?{...e,componentes:comps}:e));
+  DB.set('equipamentos',DB.get('equipamentos').map(e=>e.id==_infoEquipId?{...e,componentes:comps,foto:_infoFotoAtual||null}:e));
   closeModal('modal-info-equip');
   renderManutencao();
 }
+// Mostra/oculta a prévia da foto no modal Informações
+function mostrarFotoPreview(src){
+  const prev=document.getElementById('info-foto-preview'),vazio=document.getElementById('info-foto-vazio'),rem=document.getElementById('info-foto-remover');
+  if(src){prev.src=src;prev.style.display='inline-block';vazio.style.display='none';rem.style.display='inline-flex';}
+  else{prev.removeAttribute('src');prev.style.display='none';vazio.style.display='flex';rem.style.display='none';}
+}
+// Lê a foto escolhida, redimensiona (máx 700px) e comprime pra não pesar
+function carregarFotoEquip(ev){
+  const file=ev.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      const max=700;let w=img.width,h=img.height;
+      if(w>h&&w>max){h=Math.round(h*max/w);w=max;}
+      else if(h>=w&&h>max){w=Math.round(w*max/h);h=max;}
+      const cv=document.createElement('canvas');cv.width=w;cv.height=h;
+      cv.getContext('2d').drawImage(img,0,0,w,h);
+      _infoFotoAtual=cv.toDataURL('image/jpeg',0.7);
+      mostrarFotoPreview(_infoFotoAtual);
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+  ev.target.value='';
+}
+function removerFotoEquip(){_infoFotoAtual='';mostrarFotoPreview('');}
 
 // ========================
 // VER / IMPRIMIR CONTRATO
