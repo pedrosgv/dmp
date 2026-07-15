@@ -827,6 +827,21 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
   </div>
 </div>
 
+<!-- INFORMAÇÕES / PEÇAS DO EQUIPAMENTO (cada betoneira tem peças próprias) -->
+<div class="modal-overlay" id="modal-info-equip">
+  <div class="modal">
+    <div class="modal-header"><h3 id="info-equip-title">Informações</h3><button class="modal-close" onclick="closeModal('modal-info-equip')">×</button></div>
+    <div class="modal-body">
+      <p style="color:var(--muted);font-size:13px;margin:0 0 14px">Especificação de cada peça desta betoneira. Clique no campo para ver as opções ou digite uma diferente.</p>
+      <div id="info-comp-list"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-info-equip')">Cancelar</button>
+      <button class="btn btn-primary" onclick="salvarInfoEquip()">Salvar</button>
+    </div>
+  </div>
+</div>
+
 <!-- AJUSTE DE ESTOQUE (compra / descarte / venda) -->
 <div class="modal-overlay" id="modal-ajuste-estoque">
   <div class="modal">
@@ -1051,7 +1066,7 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
     <div class="modal-body">
       <div class="form-grid">
         <div class="form-group full"><label>EQUIPAMENTO</label>
-          <select id="manut-equip"><option value="">-- Selecione --</option></select>
+          <select id="manut-equip" onchange="atualizarPecasManut()"><option value="">-- Selecione --</option></select>
         </div>
         <div class="form-group"><label>DATA DA MANUTENÇÃO</label><input id="manut-data" type="date"></div>
         <div class="form-group"><label>TIPO</label>
@@ -1059,7 +1074,11 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
         </div>
         <div class="form-group"><label>VALOR GASTO (R$)</label><input id="manut-valor" type="number" step="0.01" min="0" placeholder="0,00"></div>
         <div class="form-group"><label>REALIZADO POR</label><input id="manut-resp" placeholder="Nome do técnico ou empresa"></div>
-        <div class="form-group full"><label>DESCRIÇÃO / O QUE FOI FEITO</label><textarea id="manut-desc" rows="3" placeholder="Descreva o serviço realizado, peças trocadas, observações..."></textarea></div>
+        <div class="form-group full" id="manut-pecas-box" style="display:none">
+          <label>PEÇAS QUE FORAM MEXIDAS / TROCADAS</label>
+          <div id="manut-pecas-list" style="display:flex;flex-wrap:wrap;gap:10px 20px"></div>
+        </div>
+        <div class="form-group full"><label>DESCRIÇÃO / OBSERVAÇÕES</label><textarea id="manut-desc" rows="3" placeholder="Detalhes do serviço, observações..."></textarea></div>
         <div class="form-group full">
           <label style="display:flex;align-items:center;gap:8px;cursor:pointer">
             <input type="checkbox" id="manut-reiniciar" style="width:auto;height:auto;padding:0;margin:0"> 
@@ -1094,10 +1113,10 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSess
 
 // Mapeamento JS<->DB: como o banco usa snake_case e o JS usa camelCase, normalizamos
 const FIELD_MAP={
-  equipamentos:{toDb:o=>({id:o.id,nome:o.nome,cat:o.cat,qty:o.qty,em_uso:o.emUso||0,manutencao:o.manutencao||0,diario:o.diario,semanal:o.semanal,mensal:o.mensal,unidade:o.unidade,status:o.status,descricao:o.desc||'',grupo:o.grupo||null,tipo_controle:o.tipoControle||'quantidade'}),fromDb:r=>({id:r.id,nome:r.nome,cat:r.cat,qty:r.qty,emUso:r.em_uso,manutencao:r.manutencao,diario:Number(r.diario),semanal:Number(r.semanal),mensal:Number(r.mensal),unidade:r.unidade,status:r.status,desc:r.descricao||'',grupo:r.grupo||'',tipoControle:r.tipo_controle||'quantidade'})},
+  equipamentos:{toDb:o=>({id:o.id,nome:o.nome,cat:o.cat,qty:o.qty,em_uso:o.emUso||0,manutencao:o.manutencao||0,diario:o.diario,semanal:o.semanal,mensal:o.mensal,unidade:o.unidade,status:o.status,descricao:o.desc||'',grupo:o.grupo||null,tipo_controle:o.tipoControle||'quantidade',componentes:o.componentes||[]}),fromDb:r=>({id:r.id,nome:r.nome,cat:r.cat,qty:r.qty,emUso:r.em_uso,manutencao:r.manutencao,diario:Number(r.diario),semanal:Number(r.semanal),mensal:Number(r.mensal),unidade:r.unidade,status:r.status,desc:r.descricao||'',grupo:r.grupo||'',tipoControle:r.tipo_controle||'quantidade',componentes:r.componentes||[]})},
   clientes:{toDb:o=>({id:o.id,nome:o.nome,tipo:o.tipo,doc:o.doc,rg:o.rg,tel:o.tel,email:o.email,endereco:o.end,obs:o.obs}),fromDb:r=>({id:r.id,nome:r.nome,tipo:r.tipo,doc:r.doc,rg:r.rg,tel:r.tel,email:r.email,end:r.endereco,obs:r.obs})},
   contratos:{toDb:o=>({id:o.id,cliente_id:o.clienteId,inicio:o.inicio,fim:o.fim||null,pagamento:o.pagamento,status:o.status,local:o.local,itens:o.itens||[],total:o.total||0,desconto:o.desconto||0,frete:o.frete||0,pago:!!o.pago,pagamentos:o.pagamentos||[],obs:o.obs,para_retirada:!!o.paraRetirada,renovado_de:o.renovadoDe||null,filial_id:o.filialId||null}),fromDb:r=>({id:r.id,clienteId:r.cliente_id,inicio:r.inicio,fim:r.fim,pagamento:r.pagamento,status:r.status,local:r.local,itens:r.itens||[],total:Number(r.total),desconto:Number(r.desconto||0),frete:Number(r.frete||0),pago:r.pago,pagamentos:r.pagamentos||[],obs:r.obs,criadoEm:r.created_at,paraRetirada:!!r.para_retirada,renovadoDe:r.renovado_de,filialId:r.filial_id})},
-  manutencoes:{toDb:o=>({id:o.id,equip_id:o.equipId,data:o.data,tipo:o.tipo,valor:o.valor||0,responsavel:o.resp,descricao:o.desc,revisao_concluida:!!o.revisaoConcluida}),fromDb:r=>({id:r.id,equipId:r.equip_id,data:r.data,tipo:r.tipo,valor:Number(r.valor),resp:r.responsavel,desc:r.descricao,revisaoConcluida:r.revisao_concluida})},
+  manutencoes:{toDb:o=>({id:o.id,equip_id:o.equipId,data:o.data,tipo:o.tipo,valor:o.valor||0,responsavel:o.resp,descricao:o.desc,revisao_concluida:!!o.revisaoConcluida,itens_feitos:o.itensFeitos||[]}),fromDb:r=>({id:r.id,equipId:r.equip_id,data:r.data,tipo:r.tipo,valor:Number(r.valor),resp:r.responsavel,desc:r.descricao,revisaoConcluida:r.revisao_concluida,itensFeitos:r.itens_feitos||[]})},
   filiais:{toDb:o=>({id:o.id,nome:o.nome,cnpj:o.cnpj||null,endereco:o.endereco||null,telefone:o.telefone||null,email:o.email||null}),fromDb:r=>({id:r.id,nome:r.nome,cnpj:r.cnpj||'',endereco:r.endereco||'',telefone:r.telefone||'',email:r.email||''})},
 };
 const TPL_TODB=t=>({empresa_nome:t.empresaNome,empresa_doc:t.empresaDoc,empresa_tel:t.empresaTel,empresa_end:t.empresaEnd,cidade:t.cidade,vendedor:t.vendedor,fatura_info:t.faturaInfo,fatura_comentarios:t.faturaComentarios,obrigacoes:t.obrigacoes,multa:t.multa,foro:t.foro,obs:t.obs});
@@ -1481,7 +1500,7 @@ function verHistoricoEquip(id){
         <tbody>${manuts.map(m=>`<tr>
           <td>${fmtData(m.data)}</td>
           <td><span class="badge badge-blue">${m.tipo}</span></td>
-          <td>${m.desc||'—'}</td>
+          <td>${`${m.desc||''}${(m.itensFeitos&&m.itensFeitos.length)?`<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px">${m.itensFeitos.map(p=>`<span class="badge badge-blue">${p}</span>`).join('')}</div>`:''}`||'—'}</td>
           <td><b style="color:var(--danger)">R$ ${fmtMoney(m.valor)}</b></td>
           <td>${m.resp||'—'}</td>
           <td>${m.revisaoConcluida?'<span class="badge badge-green">Concluída</span>':'<span class="badge badge-gray">—</span>'}</td>
@@ -2077,6 +2096,14 @@ function populateManutSelects(){
   document.getElementById('manut-equip').innerHTML='<option value="">-- Selecione --</option>'+eq.map(e=>`<option value="${e.id}">${e.nome} (${e.cat})</option>`).join('');
   document.getElementById('manut-data').value=hoje();
   document.getElementById('manut-reiniciar').checked=true;
+  atualizarPecasManut();
+}
+// Mostra as checkboxes de peças só quando o equipamento selecionado é betoneira
+function atualizarPecasManut(){
+  const eq=DB.get('equipamentos').find(x=>x.id==document.getElementById('manut-equip').value);
+  const isBet=eq&&(eq.cat||'').toLowerCase().includes('betoneira');
+  document.getElementById('manut-pecas-box').style.display=isBet?'block':'none';
+  document.getElementById('manut-pecas-list').innerHTML=isBet?COMP_BETONEIRA.map(c=>`<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:500"><input type="checkbox" class="manut-peca-chk" value="${c.el}" style="width:auto;height:auto;padding:0;margin:0"> ${c.el}</label>`).join(''):'';
 }
 
 function salvarManutencao(){
@@ -2090,6 +2117,7 @@ function salvarManutencao(){
     resp:document.getElementById('manut-resp').value.trim(),
     desc:document.getElementById('manut-desc').value.trim(),
     revisaoConcluida:document.getElementById('manut-reiniciar').checked,
+    itensFeitos:[...document.querySelectorAll('#manut-pecas-list .manut-peca-chk:checked')].map(c=>c.value),
     criadoEm:new Date().toISOString()
   };
   let m=DB.get('manutencoes');m.push(obj);DB.set('manutencoes',m);
@@ -2174,6 +2202,7 @@ function renderManutencao(){
       alertasHtml+=`<div class="alert alert-warning">🟡 <b>${e.nome}</b> — Revisão vence em <b>${dias} dias</b> (${fmtData(proxData)})</div>`;}
     else{situacao=`<span class="badge badge-green">Em dia</span>`;barColor='var(--success)';barPct=Math.round((180-dias)/180*100);}
     const totalGasto=manuts.filter(m=>m.equipId===e.id).reduce((s,m)=>s+(m.valor||0),0);
+    const infoBtn=(e.cat||'').toLowerCase().includes('betoneira')?` <button class="btn btn-ghost btn-sm" onclick="abrirInfoEquip(${e.id})">Informações</button>`:'';
     return`<tr>
       <td><b>${e.nome}</b><br><span style="font-size:11px;color:var(--muted)">${e.cat}</span></td>
       <td>${ultima?fmtData(ultima.data):'—'}</td>
@@ -2182,7 +2211,7 @@ function renderManutencao(){
       </td>
       <td>${situacao}</td>
       <td><b style="color:var(--danger)">R$ ${fmtMoney(totalGasto)}</b></td>
-      <td><button class="btn btn-primary btn-sm" onclick="abrirManutEquip(${e.id})">+ Registrar</button> <button class="btn btn-info btn-sm" onclick="verHistoricoEquip(${e.id})">Histórico</button></td>
+      <td><button class="btn btn-primary btn-sm" onclick="abrirManutEquip(${e.id})">+ Registrar</button> <button class="btn btn-info btn-sm" onclick="verHistoricoEquip(${e.id})">Histórico</button>${infoBtn}</td>
     </tr>`;
   }).join('');
   alertasDiv.innerHTML=alertasHtml||'<div class="alert alert-info">Todas as revisões estão em dia.</div>';
@@ -2192,7 +2221,8 @@ function renderManutencao(){
   const hist=manuts.slice().sort((a,b)=>b.data.localeCompare(a.data));
   histTbody.innerHTML=hist.map(m=>{
     const e=eq.find(x=>x.id===m.equipId)||{nome:'—'};
-    return`<tr><td>${fmtData(m.data)}</td><td><b>${e.nome}</b></td><td><span class="badge badge-blue">${m.tipo}</span></td><td>${m.desc||'—'}</td><td><b style="color:var(--danger)">R$ ${fmtMoney(m.valor)}</b></td><td>${m.resp||'—'}</td></tr>`;
+    const pecas=(m.itensFeitos&&m.itensFeitos.length)?`<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:4px">${m.itensFeitos.map(p=>`<span class="badge badge-blue">${p}</span>`).join('')}</div>`:'';
+    return`<tr><td>${fmtData(m.data)}</td><td><b>${e.nome}</b></td><td><span class="badge badge-blue">${m.tipo}</span></td><td>${`${m.desc||''}${pecas}`||'—'}</td><td><b style="color:var(--danger)">R$ ${fmtMoney(m.valor)}</b></td><td>${m.resp||'—'}</td></tr>`;
   }).join('')||'<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--muted)">Nenhuma manutenção registrada</td></tr>';
 
   updateBadges();
@@ -2201,7 +2231,44 @@ function renderManutencao(){
 function abrirManutEquip(id){
   openModal('modal-nova-manut');
   populateManutSelects();
-  setTimeout(()=>{document.getElementById('manut-equip').value=id;},50);
+  setTimeout(()=>{document.getElementById('manut-equip').value=id;atualizarPecasManut();},50);
+}
+
+// ========================
+// INFORMAÇÕES / PEÇAS DA BETONEIRA — campos fixos, cada um com opções sugeridas
+// ========================
+const COMP_BETONEIRA=[
+  {el:'Rolamento',opts:['30210','30209','30208']},
+  {el:'Rolamento Pinhão',opts:['6005','6204','6205']},
+  {el:'Correia',opts:['A44','A59']},
+  {el:'Motor',opts:['Weg','Horbach']},
+  {el:'Pinhão de Ataque',opts:['Menegotti 11 Dentes Furo 17mm','CSM 11 Dentes Furo 19mm','Metalpama 12 Dentes Furo 20mm','Metalpama 13 Dentes Furo 20mm']},
+];
+let _infoEquipId=null;
+function abrirInfoEquip(id){
+  const e=DB.get('equipamentos').find(x=>x.id==id);if(!e)return;
+  _infoEquipId=id;
+  document.getElementById('info-equip-title').textContent='Informações — '+e.nome;
+  const list=document.getElementById('info-comp-list');list.innerHTML='';
+  const salvos=e.componentes||[];
+  COMP_BETONEIRA.forEach((c,i)=>{
+    const atual=(salvos.find(s=>s.elemento===c.el)||{}).tipo||'';
+    const dlId='comp-dl-'+i;
+    const row=document.createElement('div');
+    row.className='form-group';row.style.cssText='margin-bottom:12px';
+    row.dataset.elemento=c.el;
+    row.innerHTML=`<label>${c.el}</label><input class="info-comp-tp" list="${dlId}" placeholder="Selecione ou digite"><datalist id="${dlId}">${c.opts.map(o=>`<option value="${o}">`).join('')}</datalist>`;
+    row.querySelector('.info-comp-tp').value=atual;
+    list.appendChild(row);
+  });
+  openModal('modal-info-equip');
+}
+function salvarInfoEquip(){
+  if(!_infoEquipId)return;
+  const comps=[...document.querySelectorAll('#info-comp-list .form-group')].map(r=>({elemento:r.dataset.elemento,tipo:r.querySelector('.info-comp-tp').value.trim()})).filter(c=>c.tipo);
+  DB.set('equipamentos',DB.get('equipamentos').map(e=>e.id==_infoEquipId?{...e,componentes:comps}:e));
+  closeModal('modal-info-equip');
+  renderManutencao();
 }
 
 // ========================
