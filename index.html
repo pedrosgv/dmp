@@ -162,9 +162,10 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
 .prog-bar{height:8px;background:#e7ecf5;border-radius:99px;overflow:hidden;margin-top:8px;}
 .prog-fill{height:100%;border-radius:99px;transition:width .4s cubic-bezier(.4,0,.2,1);}
 /* CONTRACT */
-.contract-preview{background:#fff;color:#111;padding:44px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;line-height:1.7;border:1px solid #e0e0e0;}
+.contract-preview{background:#fff;color:#111;padding:34px;border-radius:8px;font-family:'DM Sans',sans-serif;font-size:14px;line-height:1.55;border:1px solid #e0e0e0;}
+.contract-preview p{margin:0 0 5px;}
 .contract-preview h2{font-size:18px;font-weight:800;text-align:center;margin-bottom:4px;font-family:Arial,sans-serif;}
-.contract-preview .section-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin:20px 0 7px;border-bottom:2px solid #f5a623;padding-bottom:4px;color:#333;}
+.contract-preview .section-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin:15px 0 6px;border-bottom:2px solid #f5a623;padding-bottom:4px;color:#333;}
 .contract-preview table{width:100%;border-collapse:collapse;margin:8px 0;font-size:13px;}
 .contract-preview table th{background:#f5a623;color:#000;padding:7px 11px;text-align:left;font-weight:700;font-size:12px;}
 .contract-preview table td{padding:9px 11px;}
@@ -172,7 +173,7 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
 .contract-preview table tbody tr:not(.total-row):not(.subtotal-row) + tr:not(.total-row):not(.subtotal-row) td{border-top:1px solid #ececf0;}
 /* Separa o bloco de totais com uma linha um pouco mais nítida */
 .contract-preview table .subtotal-row td{border-top:1.5px solid #c8cad2;}
-.contract-preview .sign-row{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:48px;}
+.contract-preview .sign-row{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:32px;}
 .contract-preview .sign-line{border-top:2px solid #333;padding-top:7px;font-size:12px;color:#555;}
 .contract-logo{max-height:75px;display:block;margin:0 auto 10px;}
 .total-row td{background:rgba(245,166,35,.08)!important;font-weight:700;}
@@ -387,6 +388,18 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
     margin:0!important;
     padding:20px!important;
   }
+  /* Compacta o CONTRATO para caber em 1 folha A4 (mantém o mesmo visual, só mais justo) */
+  .contract-preview{padding:0!important;font-size:11px!important;line-height:1.3!important;}
+  .contract-preview h2{font-size:15px!important;margin-bottom:2px!important;}
+  .contract-preview .section-title{font-size:10.5px!important;margin:8px 0 3px!important;padding-bottom:2px!important;}
+  .contract-preview p{margin:0 0 3px!important;}
+  .contract-preview table{margin:5px 0!important;font-size:10.5px!important;}
+  .contract-preview table th{padding:4px 8px!important;font-size:10px!important;}
+  .contract-preview table td{padding:3px 8px!important;}
+  .contract-preview .sign-row{margin-top:22px!important;gap:32px!important;}
+  .contract-preview .sign-line{font-size:11px!important;}
+  .contract-logo{max-height:50px!important;margin:0 auto 4px!important;}
+  .contract-preview tr,.contract-preview .section-title,.contract-preview .sign-row{break-inside:avoid;}
   /* Configuração de página */
   @page{
     size:A4;
@@ -2337,8 +2350,8 @@ function verContrato(id){
       <p style="text-align:center;font-size:12px;color:#777;margin-top:3px" contenteditable="true">Nº ${c.id}${renovTag} &nbsp;—&nbsp; Emitido em ${fmtData(hoje())}</p>
     </div>
     <div class="section-title">1. DAS PARTES</div>
-    <p contenteditable="true"><b>LOCADOR:</b> ${tpl.empresaNome}, inscrito no CNPJ/CPF nº ${tpl.empresaDoc}, com sede em ${tpl.empresaEnd}, telefone ${tpl.empresaTel}.</p><br>
-    ${filial?`<p contenteditable="true"><b>FILIAL:</b> ${filial.nome}${filial.cnpj?`, inscrita no CNPJ nº ${filial.cnpj}`:''}${filial.endereco?`, com sede em ${filial.endereco}`:''}${filial.telefone?`, telefone ${filial.telefone}`:''}${filial.email?`, e-mail: ${filial.email}`:''}.</p><br>`:''}
+    <p contenteditable="true"><b>LOCADOR:</b> ${tpl.empresaNome}, inscrito no CNPJ/CPF nº ${tpl.empresaDoc}, com sede em ${tpl.empresaEnd}, telefone ${tpl.empresaTel}.</p>
+    ${filial?`<p contenteditable="true"><b>FILIAL:</b> ${filial.nome}${filial.cnpj?`, inscrita no CNPJ nº ${filial.cnpj}`:''}${filial.endereco?`, com sede em ${filial.endereco}`:''}${filial.telefone?`, telefone ${filial.telefone}`:''}${filial.email?`, e-mail: ${filial.email}`:''}.</p>`:''}
     <p contenteditable="true"><b>LOCATÁRIO:</b> ${cl.nome||'—'}, ${cl.tipo==='pj'?'CNPJ':'CPF'}: ${cl.doc||'—'}, RG/IE: ${cl.rg||'—'}, telefone: ${cl.tel||'—'}, e-mail: ${cl.email||'—'}, endereço: ${cl.end||'—'}.</p>
     <div class="section-title">2. DO OBJETO</div>
     <p contenteditable="true">Locação dos equipamentos abaixo para uso em: <b>${c.local||'[Local da obra]'}</b>.</p>
@@ -2925,7 +2938,7 @@ function renderMeses(){
   const fatPendente=ct.filter(c=>c.status!=='cancelado').reduce((s,c)=>s+pgSaldo(c),0);
   document.getElementById('meses-stats').innerHTML=`
     <div class="stat-card blue"><div class="val">${total}</div><div class="lbl">Contratos no mês</div></div>
-    <div class="stat-card"><div class="val">R$ ${fmtMoney(fatTotal)}</div><div class="lbl">Valor Total</div></div>
+    <div class="stat-card d1"><div class="val">R$ ${fmtMoney(fatTotal)}</div><div class="lbl">Valor Total</div></div>
     <div class="stat-card green"><div class="val">R$ ${fmtMoney(fatPago)}</div><div class="lbl">Já Pago</div></div>
     <div class="stat-card orange"><div class="val">R$ ${fmtMoney(fatPendente)}</div><div class="lbl">A Receber</div></div>`;
 
