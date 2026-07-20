@@ -2484,7 +2484,7 @@ function verFatura(id){
       <td class="col-desc">${e.nome}</td>
       <td class="col-qty">${it.qty} ${e.unidade||'un'}</td>
       <td class="col-per">${periodoLabel}</td>
-      <td class="col-val">R$ ${fmtMoney(it.valor)}</td>
+      <td class="col-val">R$ ${fmtMoney(it.qty*it.valor*(it.qtdPeriodo||1))}</td>
     </tr>`;
   }).join('');
 
@@ -2555,7 +2555,7 @@ function verFatura(id){
             <th class="col-desc">Descrição</th>
             <th class="col-qty" style="text-align:center">Qtd.</th>
             <th class="col-per" style="text-align:center;color:#8a8e9c">Período</th>
-            <th class="col-val" style="text-align:right">Valor</th>
+            <th class="col-val" style="text-align:right">Total</th>
           </tr>
         </thead>
         <tbody>${rows}</tbody>
@@ -2566,8 +2566,8 @@ function verFatura(id){
     <div class="fatura-totais-wrap">
       <div class="fatura-totais">
         <div class="fatura-totais-linha"><span>Subtotal</span><b>R$ ${fmtMoney((c.total||0)+(c.desconto||0)-(c.frete||0))}</b></div>
-        ${(c.desconto||0)>0?`<div class="fatura-totais-linha"><span>Desconto</span><b style="color:var(--success)">− R$ ${fmtMoney(c.desconto)}</b></div>`:''}
         ${(c.frete||0)!==0?`<div class="fatura-totais-linha"><span>Frete</span><b>${(c.frete||0)<0?'− ':''}R$ ${fmtMoney(Math.abs(c.frete))}</b></div>`:'<div class="fatura-totais-linha" contenteditable="true" title="Clique para editar"><span>Frete</span><b>R$ 0,00</b></div>'}
+        ${(c.desconto||0)>0?`<div class="fatura-totais-linha"><span>Desconto</span><b style="color:var(--success)">− R$ ${fmtMoney(c.desconto)}</b></div>`:''}
         <div class="fatura-totais-total"><span>Total</span><span>R$ ${fmtMoney(c.total)}</span></div>
       </div>
     </div>
