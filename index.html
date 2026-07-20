@@ -762,9 +762,21 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
 <!-- FINANCEIRO -->
 <div class="page" id="page-financeiro">
   <div class="page-header"><h2>Financeiro</h2><p>Receitas e pagamentos</p></div>
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-body" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap">
+      <div style="flex:1;min-width:200px">
+        <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Mês</label>
+        <select id="fin-mes-seletor" onchange="renderFinanceiro()"></select>
+      </div>
+      <div style="display:flex;gap:6px">
+        <button class="btn btn-ghost btn-sm" onclick="finNavMes(1)">← Anterior</button>
+        <button class="btn btn-ghost btn-sm" onclick="finNavMes(-1)">Próximo →</button>
+      </div>
+    </div>
+  </div>
   <div class="stats-grid" id="fin-stats"></div>
   <div class="card"><div class="card-body">
-    <table><thead><tr><th>Contrato</th><th>Cliente</th><th>Valor</th><th>Vencimento</th><th>Pagamento</th><th>Ações</th></tr></thead>
+    <table><thead><tr><th>Contrato</th><th>Cliente</th><th>Equipamento</th><th>Período</th><th>Valor</th><th>Vencimento</th><th>Pagamento</th><th>Ações</th></tr></thead>
     <tbody id="fin-tbody"></tbody></table>
   </div></div>
 </div>
@@ -958,7 +970,22 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
         <div class="form-group"><label>STATUS</label>
           <select id="contrato-status"><option value="pendente">Pendente</option><option value="ativo">Ativo</option><option value="finalizado">Finalizado</option><option value="cancelado">Cancelado</option></select>
         </div>
+        <div class="form-group"><label>QUANDO O CLIENTE PAGA</label>
+          <select id="contrato-paga-em"><option value="mesmo">Em dia (no próprio mês)</option><option value="seguinte">Mês seguinte (atrasado)</option><option value="anterior">Mês anterior (adiantado)</option></select>
+        </div>
         <div class="form-group full"><label>LOCAL DE ENTREGA / OBRA</label><input id="contrato-local" placeholder="Endereço da obra ou local de entrega"></div>
+        <div class="form-group full">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;letter-spacing:0">
+            <input type="checkbox" id="contrato-sem-estoque" onchange="renderContratoItens()" style="width:auto;height:auto;padding:0;margin:0">
+            <span style="font-size:13px;font-weight:600;color:var(--text)">Criar sem estoque <span style="font-weight:400;color:var(--muted)">— não reserva nem desconta do estoque (você controla a disponibilidade)</span></span>
+          </label>
+        </div>
+        <div class="form-group full">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;letter-spacing:0">
+            <input type="checkbox" id="contrato-avulso" style="width:auto;height:auto;padding:0;margin:0">
+            <span style="font-size:13px;font-weight:600;color:var(--text)">Locação avulsa <span style="font-weight:400;color:var(--muted)">— não renova (aparece só no mês de início). Deixe desmarcado para renovar automaticamente por 60 meses.</span></span>
+          </label>
+        </div>
       </div>
       <hr class="divider">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:13px">
@@ -1142,7 +1169,7 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSess
 const FIELD_MAP={
   equipamentos:{toDb:o=>({id:o.id,nome:o.nome,cat:o.cat,qty:o.qty,em_uso:o.emUso||0,manutencao:o.manutencao||0,diario:o.diario,semanal:o.semanal,mensal:o.mensal,unidade:o.unidade,status:o.status,descricao:o.desc||'',grupo:o.grupo||null,tipo_controle:o.tipoControle||'quantidade',componentes:o.componentes||[],foto:o.foto||null,fotos:o.fotos||[]}),fromDb:r=>({id:r.id,nome:r.nome,cat:r.cat,qty:r.qty,emUso:r.em_uso,manutencao:r.manutencao,diario:Number(r.diario),semanal:Number(r.semanal),mensal:Number(r.mensal),unidade:r.unidade,status:r.status,desc:r.descricao||'',grupo:r.grupo||'',tipoControle:r.tipo_controle||'quantidade',componentes:r.componentes||[],foto:r.foto||'',fotos:r.fotos||[]})},
   clientes:{toDb:o=>({id:o.id,nome:o.nome,tipo:o.tipo,doc:o.doc,rg:o.rg,tel:o.tel,email:o.email,endereco:o.end,obs:o.obs}),fromDb:r=>({id:r.id,nome:r.nome,tipo:r.tipo,doc:r.doc,rg:r.rg,tel:r.tel,email:r.email,end:r.endereco,obs:r.obs})},
-  contratos:{toDb:o=>({id:o.id,cliente_id:o.clienteId,inicio:o.inicio,fim:o.fim||null,pagamento:o.pagamento,status:o.status,local:o.local,itens:o.itens||[],total:o.total||0,desconto:o.desconto||0,frete:o.frete||0,pago:!!o.pago,pagamentos:o.pagamentos||[],obs:o.obs,para_retirada:!!o.paraRetirada,renovado_de:o.renovadoDe||null,filial_id:o.filialId||null}),fromDb:r=>({id:r.id,clienteId:r.cliente_id,inicio:r.inicio,fim:r.fim,pagamento:r.pagamento,status:r.status,local:r.local,itens:r.itens||[],total:Number(r.total),desconto:Number(r.desconto||0),frete:Number(r.frete||0),pago:r.pago,pagamentos:r.pagamentos||[],obs:r.obs,criadoEm:r.created_at,paraRetirada:!!r.para_retirada,renovadoDe:r.renovado_de,filialId:r.filial_id})},
+  contratos:{toDb:o=>({id:o.id,cliente_id:o.clienteId,inicio:o.inicio,fim:o.fim||null,pagamento:o.pagamento,status:o.status,local:o.local,itens:o.itens||[],total:o.total||0,desconto:o.desconto||0,frete:o.frete||0,pago:!!o.pago,pagamentos:o.pagamentos||[],obs:o.obs,para_retirada:!!o.paraRetirada,renovado_de:o.renovadoDe||null,filial_id:o.filialId||null,sem_estoque:!!o.semEstoque,avulso:!!o.avulso,paga_em:o.pagaEm||'mesmo'}),fromDb:r=>({id:r.id,clienteId:r.cliente_id,inicio:r.inicio,fim:r.fim,pagamento:r.pagamento,status:r.status,local:r.local,itens:r.itens||[],total:Number(r.total),desconto:Number(r.desconto||0),frete:Number(r.frete||0),pago:r.pago,pagamentos:r.pagamentos||[],obs:r.obs,criadoEm:r.created_at,paraRetirada:!!r.para_retirada,renovadoDe:r.renovado_de,filialId:r.filial_id,semEstoque:!!r.sem_estoque,avulso:!!r.avulso,pagaEm:r.paga_em||'mesmo'})},
   manutencoes:{toDb:o=>({id:o.id,equip_id:o.equipId,data:o.data,tipo:o.tipo,valor:o.valor||0,responsavel:o.resp,descricao:o.desc,revisao_concluida:!!o.revisaoConcluida,itens_feitos:o.itensFeitos||[]}),fromDb:r=>({id:r.id,equipId:r.equip_id,data:r.data,tipo:r.tipo,valor:Number(r.valor),resp:r.responsavel,desc:r.descricao,revisaoConcluida:r.revisao_concluida,itensFeitos:r.itens_feitos||[]})},
   filiais:{toDb:o=>({id:o.id,nome:o.nome,cnpj:o.cnpj||null,endereco:o.endereco||null,telefone:o.telefone||null,email:o.email||null}),fromDb:r=>({id:r.id,nome:r.nome,cnpj:r.cnpj||'',endereco:r.endereco||'',telefone:r.telefone||'',email:r.email||''})},
 };
@@ -1590,13 +1617,10 @@ function disponibilidadeEquip(equipId,ignorarIndiceItem){
   if(!e)return 0;
   const total=e.qty||0;
   const manut=e.manutencao||0;
-  const hj=hoje();
-  // Disponibilidade calculada NA DATA DE INÍCIO do contrato em edição (não na de hoje)
-  const S=(document.getElementById('contrato-inicio')?.value)||hj;
-  // Soma o que estará ocupado nessa data S (conservador: contratos que podem renovar seguem ocupando)
+  // Soma o que está reservado agora (contratos ativos/pendentes que não são "sem estoque")
   let reservado=0;
   DB.get('contratos').forEach(c=>{
-    (c.itens||[]).forEach(it=>{if(it.equipId==equipId)reservado+=itemReservaEmData(c,it,S,hj);});
+    (c.itens||[]).forEach(it=>{if(it.equipId==equipId)reservado+=itemReserva(c,it);});
   });
   // Soma o que este contrato em edição já está usando deste equipamento (menos o item atual)
   let usadoNesteForm=0;
@@ -1616,6 +1640,9 @@ function populateContratoSelects(){
   const selFil=document.getElementById('contrato-filial');
   selFil.innerHTML='<option value="">— Sem filial (apenas matriz) —</option>'+DB.get('filiais').map(f=>`<option value="${f.id}">${f.nome}</option>`).join('');
   selFil.value='';
+  const se=document.getElementById('contrato-sem-estoque');if(se)se.checked=false;
+  const av=document.getElementById('contrato-avulso');if(av)av.checked=false;
+  const pe=document.getElementById('contrato-paga-em');if(pe)pe.value='mesmo';
   contratoItens=[];renderContratoItens();
   document.getElementById('contrato-inicio').value=hoje();
   const dn=document.getElementById('contrato-desconto');if(dn)dn.value='';
@@ -1649,14 +1676,16 @@ function selecionarCliente(id){
 function addContratoItem(){contratoItens.push({equipId:'',qty:1,terc:0,periodo:'diario',qtdPeriodo:1,valor:0});renderContratoItens();}
 function renderContratoItens(){
   const div=document.getElementById('contrato-itens-list');
+  const semEst=document.getElementById('contrato-sem-estoque')?.checked;
   if(!contratoItens.length){div.innerHTML='<p class="text-muted" style="padding:6px 0">Clique em "+ Adicionar Item".</p>';atualizarTotal();return;}
   div.innerHTML=contratoItens.map((it,i)=>{
     const pl=it.periodo==='diario'?'Dia(s)':it.periodo==='semanal'?'Semana(s)':'Mês/Meses';
     const eqSel=it.equipId?DB.get('equipamentos').find(e=>e.id==it.equipId):null;
     const dispAtual=it.equipId?disponibilidadeEquip(it.equipId,i):0;
-    // Normaliza terceirizado: no mínimo o excedente sobre o estoque próprio, no máximo a qtde total
+    // Normaliza terceirizado: no mínimo o excedente sobre o estoque próprio, no máximo a qtde total.
+    // Se o contrato é "sem estoque", não força terceirizado (você controla a disponibilidade).
     let terc=it.terc||0;
-    const minTerc=it.equipId?Math.max(0,(it.qty||0)-dispAtual):0;
+    const minTerc=(it.equipId&&!semEst)?Math.max(0,(it.qty||0)-dispAtual):0;
     if(terc<minTerc)terc=minTerc;
     if(terc>it.qty)terc=it.qty;
     it.terc=terc;
@@ -1687,7 +1716,7 @@ function renderContratoItens(){
         <div class="form-group"><label>VALOR UNIT. R$</label><input type="number" step="0.01" value="${it.valor}" oninput="contratoItens[${i}].valor=parseFloat(this.value)||0;atualizarTotal()" id="vi-${i}"></div>
         <div class="form-group"><label title="Unidades alugadas de outra locadora — não descontam do seu estoque">TERCEIR.</label><input type="number" min="0" max="${it.qty}" value="${terc}" onchange="ajustarTercItem(${i},this)" title="Unidades alugadas de outra locadora — não descontam do seu estoque"></div>
       </div>
-      ${it.equipId?`<div style="margin-top:9px;font-size:11.5px;color:var(--muted)">${dispAtual>0?`<span style="color:var(--success);font-weight:600">${dispAtual} disponível(is)</span> no seu estoque`:`<span style="color:var(--danger);font-weight:600">Sem estoque próprio</span>`}${terc>0?` · <span style="color:var(--info);font-weight:600">${proprio} própria(s) + ${terc} terceirizada(s)</span>`:''}</div>`:''}
+      ${it.equipId?`<div style="margin-top:9px;font-size:11.5px;color:var(--muted)">${semEst?'<span style="color:var(--info);font-weight:600">Sem controle de estoque</span> neste contrato':(dispAtual>0?`<span style="color:var(--success);font-weight:600">${dispAtual} disponível(is)</span> no seu estoque`:`<span style="color:var(--danger);font-weight:600">Sem estoque próprio</span>`)}${(!semEst&&terc>0)?` · <span style="color:var(--info);font-weight:600">${proprio} própria(s) + ${terc} terceirizada(s)</span>`:''}</div>`:''}
       <div style="margin-top:6px;font-size:12px;color:var(--muted)">Subtotal: <b style="color:var(--accent2)">R$ ${fmtMoney(sub)}</b> (${it.qty} × R$ ${fmtMoney(it.valor)} × ${it.qtdPeriodo||1} ${pl.toLowerCase()})</div>
     </div>`;
   }).join('');
@@ -1752,8 +1781,9 @@ function salvarContrato(){
   const cId=parseInt(document.getElementById('contrato-cliente').value);
   if(!cId){alert('Selecione um cliente.');return;}
   if(!contratoItens.length||contratoItens.some(it=>!it.equipId)){alert('Adicione ao menos um equipamento.');return;}
-  // Verifica disponibilidade final antes de salvar (proteção extra contra excesso)
-  for(let i=0;i<contratoItens.length;i++){
+  const semEstoque=document.getElementById('contrato-sem-estoque').checked;
+  // Verifica disponibilidade final antes de salvar (proteção extra) — não aplica se for "sem estoque"
+  if(!semEstoque)for(let i=0;i<contratoItens.length;i++){
     const it=contratoItens[i];
     const disp=disponibilidadeEquip(it.equipId,i);
     const proprio=(it.qty||0)-(it.terc||0);
@@ -1767,7 +1797,7 @@ function salvarContrato(){
   const frete=parseFloat(document.getElementById('contrato-frete').value)||0;
   const total=Math.max(0,subtotal-desconto+frete);
   const filialId=parseInt(document.getElementById('contrato-filial').value)||null;
-  const obj={id:DB.nextId('contratos'),clienteId:cId,filialId,inicio:document.getElementById('contrato-inicio').value,fim:document.getElementById('contrato-fim').value,pagamento:document.getElementById('contrato-pagamento').value,status:document.getElementById('contrato-status').value,local:document.getElementById('contrato-local').value,itens:JSON.parse(JSON.stringify(contratoItens)),total,desconto,frete,pago:false,pagamentos:[],paraRetirada:false,obs:document.getElementById('contrato-obs').value,criadoEm:new Date().toISOString(),renovadoDe:null};
+  const obj={id:DB.nextId('contratos'),clienteId:cId,filialId,inicio:document.getElementById('contrato-inicio').value,fim:document.getElementById('contrato-fim').value,pagamento:document.getElementById('contrato-pagamento').value,status:document.getElementById('contrato-status').value,local:document.getElementById('contrato-local').value,itens:JSON.parse(JSON.stringify(contratoItens)),total,desconto,frete,pago:false,pagamentos:[],paraRetirada:false,semEstoque,avulso:document.getElementById('contrato-avulso').checked,pagaEm:document.getElementById('contrato-paga-em').value,obs:document.getElementById('contrato-obs').value,criadoEm:new Date().toISOString(),renovadoDe:null};
   let ct=DB.get('contratos');ct.push(obj);DB.set('contratos',ct);
   recalcularEmUso();
   closeModal('modal-contrato');contratoItens=[];document.getElementById('contrato-desconto').value='';document.getElementById('contrato-frete').value='';renderContratos();updateBadges();
@@ -2704,18 +2734,17 @@ function resetTemplate(){DB.set('template',TPL_DEF);renderTemplate();}
 // - até hoje: continua ocupando (não foi retirado ainda), mesmo vencido
 // - datas futuras (planejamento): CONSERVADOR — assume que pode renovar e segue ocupando,
 //   EXCETO se marcado "para retirada" (retirada certa) — aí libera a partir do fim.
-function contratoOcupaEm(c,S,today){
-  if(!['ativo','pendente'].includes(c.status))return false;
-  if(!c.inicio||c.inicio>S)return false;
-  if(S<=today)return true;
-  if(c.paraRetirada&&c.fim&&S>=c.fim)return false;
-  return true;
+// Um contrato reserva estoque enquanto está ATIVO/PENDENTE e NÃO é "sem estoque".
+// (Removida a antiga previsão por data de término de outros contratos — o estoque agora
+//  reflete só a situação atual; a disponibilidade futura você controla com "criar sem estoque".)
+function contratoOcupaEstoque(c){
+  return !c.semEstoque && ['ativo','pendente'].includes(c.status);
 }
-// Quantas unidades PRÓPRIAS de um item de contrato estão reservando estoque na data S.
-// Normal (pendente/ativo já iniciado): qty − terceirizado − já retirado.
-// Finalizado: só o que ficou agendado como retirada parcial (leftovers de renovação, aguardando pickup).
-function itemReservaEmData(c,it,S,today){
-  if(contratoOcupaEm(c,S,today))return Math.max(0,(Number(it.qty)||0)-(Number(it.terc)||0)-(Number(it.retirado)||0));
+// Quantas unidades PRÓPRIAS de um item reservam estoque agora.
+// Normal: qty − terceirizado − já retirado. Finalizado: só o agendado p/ retirada parcial (aguardando pickup).
+function itemReserva(c,it){
+  if(c.semEstoque)return 0;
+  if(contratoOcupaEstoque(c))return Math.max(0,(Number(it.qty)||0)-(Number(it.terc)||0)-(Number(it.retirado)||0));
   if(c.status==='finalizado')return Math.max(0,Number(it.retirarQty)||0);
   return 0;
 }
@@ -2723,9 +2752,8 @@ function itemReservaEmData(c,it,S,today){
 function temRetiradaParcial(c){return (c.itens||[]).some(it=>(Number(it.retirarQty)||0)>0);}
 function recalcularEmUso(){
   const uso={};
-  const hj=hoje();
   DB.get('contratos').forEach(c=>{
-    (c.itens||[]).forEach(it=>{const r=itemReservaEmData(c,it,hj,hj);if(r>0)uso[it.equipId]=(uso[it.equipId]||0)+r;});
+    (c.itens||[]).forEach(it=>{const r=itemReserva(c,it);if(r>0)uso[it.equipId]=(uso[it.equipId]||0)+r;});
   });
   let mudou=false;
   const eq=DB.get('equipamentos').map(e=>{
@@ -2845,73 +2873,144 @@ function verLocalizacaoEquip(equipId){
 // FINANCEIRO
 // ========================
 function renderFinanceiro(){
-  const ct=DB.get('contratos'),cls=DB.get('clientes');
+  const ct=DB.get('contratos'),cls=DB.get('clientes'),eq=DB.get('equipamentos');
   const hoje=new Date();hoje.setHours(0,0,0,0);
-  // Faturamento Total: tudo que efetivamente entrou (inclui pagamentos parciais)
-  const total=ct.reduce((s,c)=>s+pgRecebido(c),0);
-  // A Receber: saldo em aberto dos contratos não cancelados (parcial conta só o que falta)
-  const rec=ct.filter(c=>c.status!=='cancelado').reduce((s,c)=>s+pgSaldo(c),0);
-  const pagos=ct.filter(c=>pgQuitado(c)).length;
-  // Inadimplente: saldo em aberto de contratos vencidos, não cancelados
-  const inadimplente=ct.filter(c=>{
-    if(pgQuitado(c)||c.status==='cancelado'||!c.fim)return false;
-    const f=new Date(c.fim);f.setHours(0,0,0,0);
-    return f<hoje;
-  }).reduce((s,c)=>s+pgSaldo(c),0);
+  const hojeYM=`${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
+  // Seletor de mês (inclui os meses projetados). Padrão: mês atual.
+  const sel=document.getElementById('fin-mes-seletor');
+  const meses=obterMesesFinanceiro();
+  const mesAtual=sel&&sel.value&&meses.includes(sel.value)?sel.value:(meses.includes(hojeYM)?hojeYM:meses[0]);
+  if(sel)sel.innerHTML=meses.map(m=>{const [y,mm]=m.split('-');return`<option value="${m}"${m===mesAtual?' selected':''}>${MESES_NOMES[parseInt(mm)-1]} / ${y}</option>`;}).join('');
+  // Projeção: monta uma "linha" (cobrança) por ciclo de contrato que cai no mês selecionado
+  const linhas=[];
+  ct.forEach(c=>{ciclosNoMes(c,mesAtual,hojeYM).forEach(x=>linhas.push(x));});
+  // Totais do mês (com base nos ciclos projetados)
+  const total=linhas.reduce((s,x)=>s+pgRecebidoMes(x.c,x.refYM),0);
+  const rec=linhas.filter(x=>x.c.status!=='cancelado').reduce((s,x)=>s+pgSaldoMes(x.c,x.refYM),0);
+  const pagos=linhas.filter(x=>pgQuitadoMes(x.c,x.refYM)).length;
+  const inadimplente=linhas.filter(x=>{
+    if(x.c.status==='cancelado'||pgQuitadoMes(x.c,x.refYM))return false;
+    const f=new Date(x.fim);f.setHours(0,0,0,0);return f<hoje;
+  }).reduce((s,x)=>s+pgSaldoMes(x.c,x.refYM),0);
   document.getElementById('fin-stats').innerHTML=`
-    <div class="stat-card green"><div class="val">R$ ${fmtMoney(total)}</div><div class="lbl">Faturamento Total</div></div>
-    <div class="stat-card orange"><div class="val">R$ ${fmtMoney(rec)}</div><div class="lbl">A Receber</div></div>
-    <div class="stat-card red"><div class="val">R$ ${fmtMoney(inadimplente)}</div><div class="lbl">Inadimplente (atrasado)</div></div>
-    <div class="stat-card blue"><div class="val">${ct.length}</div><div class="lbl">Total de Contratos</div></div>
+    <div class="stat-card green"><div class="val">R$ ${fmtMoney(total)}</div><div class="lbl">Faturamento do mês</div></div>
+    <div class="stat-card orange"><div class="val">R$ ${fmtMoney(rec)}</div><div class="lbl">A Receber (mês)</div></div>
+    <div class="stat-card red"><div class="val">R$ ${fmtMoney(inadimplente)}</div><div class="lbl">Inadimplente (mês)</div></div>
+    <div class="stat-card blue"><div class="val">${linhas.length}</div><div class="lbl">Cobranças no mês</div></div>
     <div class="stat-card green"><div class="val">${pagos}</div><div class="lbl">Pagamentos Confirmados</div></div>`;
   const tb=document.getElementById('fin-tbody');
-  if(!ct.length){tb.innerHTML='<tr><td colspan="6"><div class="empty-state"><p>Sem movimentações</p></div></td></tr>';return;}
-  tb.innerHTML=ct.slice().reverse().map(c=>{
-    const cl=cls.find(x=>x.id===c.clienteId)||{nome:'—'};
-    // Linha em "vencido" quando não quitado + não cancelado + data fim passada
+  if(!linhas.length){tb.innerHTML='<tr><td colspan="8"><div class="empty-state"><p>Nenhuma cobrança neste mês</p></div></td></tr>';return;}
+  const fmtDataD=x=>`${String(x.getDate()).padStart(2,'0')}/${String(x.getMonth()+1).padStart(2,'0')}/${x.getFullYear()}`;
+  // Monta a linha de uma cobrança (um ciclo de um contrato)
+  const linhaHtml=x=>{
+    const c=x.c, cl=cls.find(y=>y.id===c.clienteId)||{nome:'—'};
+    const receb=pgRecebidoMes(c,x.refYM),saldo=pgSaldoMes(c,x.refYM),quit=pgQuitadoMes(c,x.refYM);
     let vencAttr='';
-    if(!pgQuitado(c)&&c.status!=='cancelado'&&c.fim){
-      const f=new Date(c.fim);f.setHours(0,0,0,0);
-      if(f<hoje)vencAttr=' data-vencimento="vencido"';
-    }
-    const receb=pgRecebido(c),saldo=pgSaldo(c);
+    if(!quit&&c.status!=='cancelado'){const f=new Date(x.fim);f.setHours(0,0,0,0);if(f<hoje)vencAttr=' data-vencimento="vencido"';}
     let pagCel;
-    if(pgQuitado(c))pagCel='<span class="badge badge-green">Pago</span>';
+    if(quit)pagCel='<span class="badge badge-green">Pago</span>';
     else if(receb>0)pagCel=`<span class="badge badge-blue">Parcial</span><div style="font-size:11px;color:var(--muted);margin-top:3px">R$ ${fmtMoney(receb)} / ${fmtMoney(c.total)} · falta R$ ${fmtMoney(saldo)}</div>`;
     else pagCel='<span class="badge badge-orange">Pendente</span>';
-    return`<tr data-status="${c.status}"${vencAttr}><td>#${c.id}</td><td>${cl.nome}</td><td><b>R$ ${fmtMoney(c.total)}</b></td><td>${c.fim?fmtData(c.fim):'—'}</td><td>${pagCel}</td><td><button class="btn btn-primary btn-sm" onclick="abrirPagamentos(${c.id})">Pagamentos</button></td></tr>`;
-  }).join('');
+    const eqs=(c.itens||[]).map(it=>{const e=eq.find(y=>y.id==it.equipId);return e?`${e.nome} (${it.qty})`:'—';}).join(', ')||'—';
+    const refBadge=x.refYM!==mesAtual?`<span class="badge badge-orange" title="Cobrança referente a ${nomeMesYM(x.refYM)}" style="margin-left:5px">ref. ${nomeMesCurtoYM(x.refYM)}</span>`:'';
+    return`<tr data-status="${c.status}"${vencAttr}><td>#${c.id}${refBadge}</td><td>${cl.nome}</td><td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${eqs}">${eqs}</td><td style="white-space:nowrap">${x.periodo}</td><td><b>R$ ${fmtMoney(c.total)}</b></td><td>${fmtDataD(x.fim)}</td><td>${pagCel}</td><td><button class="btn btn-primary btn-sm" onclick="abrirPagamentos(${c.id},'${x.refYM}')">Pagamentos</button></td></tr>`;
+  };
+  // Agrupa por dia do início (dia do ciclo), em ordem
+  const grupos={};
+  linhas.forEach(x=>{const dia=parseInt(x.c.inicio.slice(8,10))||1;(grupos[dia]=grupos[dia]||[]).push(x);});
+  const [Y,M]=mesAtual.split('-');
+  let html='';
+  Object.keys(grupos).map(Number).sort((a,b)=>a-b).forEach(dia=>{
+    html+=`<tr class="fin-grupo-data"><td colspan="8" style="background:var(--surface2);font-weight:700;color:var(--text);padding:9px 12px">${dia} de ${MESES_NOMES[parseInt(M)-1]} de ${Y} <span style="font-weight:400;color:var(--muted);font-size:12px">· ${grupos[dia].length} cobrança(s)</span></td></tr>`;
+    grupos[dia].sort((a,b)=>a.c.id-b.c.id).forEach(x=>{html+=linhaHtml(x);});
+  });
+  tb.innerHTML=html;
 }
 // ---- Pagamentos (parcial / à vista) ----
 function pgLista(c){return Array.isArray(c.pagamentos)?c.pagamentos:[];}
 function pgRecebido(c){return c.pago?(c.total||0):pgLista(c).reduce((s,p)=>s+(Number(p.valor)||0),0);}
 function pgSaldo(c){return Math.max(0,(c.total||0)-pgRecebido(c));}
 function pgQuitado(c){return !!c.pago||((c.total||0)>0&&pgLista(c).reduce((s,p)=>s+(Number(p.valor)||0),0)>=(c.total||0));}
+
+// ======= RENOVAÇÃO / PROJEÇÃO MENSAL (Parte 2 e 3) =======
+const PROJ_MESES=60;
+const PAGA_OFFSET={mesmo:0,seguinte:1,anterior:-1};
+function ymDe(s){return (s||'').slice(0,7);}
+function inicioYM(c){return ymDe(c.inicio);}
+function addMesYM(ym,n){const [y,m]=ym.split('-').map(Number);const d=new Date(y,m-1+n,1);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;}
+function nomeMesYM(ym){const [y,m]=ym.split('-');return `${MESES_NOMES[parseInt(m)-1]}/${y}`;}
+function nomeMesCurtoYM(ym){const [y,m]=ym.split('-');return `${MESES_NOMES[parseInt(m)-1].slice(0,3).toLowerCase()}/${y.slice(2)}`;}
+// Período (ciclo aniversário) do ciclo i a partir da data de início
+function cicloPeriodo(inicio,i){
+  const d=new Date(inicio+'T12:00:00');
+  const ini=new Date(d.getFullYear(),d.getMonth()+i,d.getDate());
+  const fim=new Date(d.getFullYear(),d.getMonth()+i+1,d.getDate());fim.setDate(fim.getDate()-1);
+  const f=x=>`${String(x.getDate()).padStart(2,'0')}/${String(x.getMonth()+1).padStart(2,'0')}/${x.getFullYear()}`;
+  return {ini,fim,label:`${f(ini)} → ${f(fim)}`};
+}
+// Ciclos de um contrato que caem no mês de EXIBIÇÃO D (YYYY-MM). Aplica o deslocamento por "quando paga".
+// Contratos finalizados/cancelados/para-retirada não projetam além do mês atual (retirada tira os renovados).
+function ciclosNoMes(c,D,hojeYM){
+  if(!c.inicio)return [];
+  const startYM=inicioYM(c);
+  const N=c.avulso?1:PROJ_MESES;
+  const off=PAGA_OFFSET[c.pagaEm||'mesmo']||0;
+  const corta=['finalizado','cancelado'].includes(c.status)||c.paraRetirada;
+  const res=[];
+  for(let i=0;i<N;i++){
+    const refYM=addMesYM(startYM,i);
+    if(corta&&refYM>hojeYM)break;
+    if(addMesYM(refYM,off)===D){const p=cicloPeriodo(c.inicio,i);res.push({c,i,refYM,periodo:p.label,fim:p.fim});}
+  }
+  return res;
+}
+// Meses disponíveis no Financeiro: do 1º início até o fim das projeções (mais recente primeiro)
+function obterMesesFinanceiro(){
+  const ct=DB.get('contratos').filter(c=>c.inicio);
+  const hoje=new Date();const hojeYM=`${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
+  if(!ct.length)return [hojeYM];
+  let minYM=null,maxYM=null;
+  ct.forEach(c=>{const s=inicioYM(c);if(!minYM||s<minYM)minYM=s;const last=addMesYM(s,(c.avulso?1:PROJ_MESES));if(!maxYM||last>maxYM)maxYM=last;});
+  if(minYM>hojeYM)minYM=hojeYM;
+  const out=[];let cur=minYM,guard=0;
+  while(cur<=maxYM&&guard<1000){out.push(cur);cur=addMesYM(cur,1);guard++;}
+  return out.reverse();
+}
+// Pagamentos por mês de referência (competência). Pagamentos antigos sem mesRef contam no mês de início.
+function pgRecebidoMes(c,ref){
+  let s=pgLista(c).filter(p=>(p.mesRef||inicioYM(c))===ref).reduce((a,p)=>a+(Number(p.valor)||0),0);
+  if(c.pago&&ref===inicioYM(c))s=Math.max(s,c.total||0);
+  return s;
+}
+function pgSaldoMes(c,ref){return Math.max(0,(c.total||0)-pgRecebidoMes(c,ref));}
+function pgQuitadoMes(c,ref){return (c.total||0)>0&&pgRecebidoMes(c,ref)>=(c.total||0);}
+
 let _pagContratoId=null;
-function abrirPagamentos(id){_pagContratoId=id;renderPagModal();openModal('modal-pagamentos');}
+let _pagMesRef=null;
+function abrirPagamentos(id,ref){_pagContratoId=id;_pagMesRef=ref||null;renderPagModal();openModal('modal-pagamentos');}
 function renderPagModal(){
   const c=DB.get('contratos').find(x=>x.id===_pagContratoId);if(!c)return;
+  const ref=_pagMesRef||inicioYM(c);
   const cl=DB.get('clientes').find(x=>x.id===c.clienteId)||{nome:'—'};
-  const lista=pgLista(c).slice().sort((a,b)=>String(a.data).localeCompare(String(b.data)));
-  const receb=pgRecebido(c),saldo=pgSaldo(c),quit=pgQuitado(c);
+  const lista=pgLista(c).filter(p=>(p.mesRef||inicioYM(c))===ref).slice().sort((a,b)=>String(a.data).localeCompare(String(b.data)));
+  const receb=pgRecebidoMes(c,ref),saldo=pgSaldoMes(c,ref),quit=pgQuitadoMes(c,ref);
   const pct=c.total?Math.min(100,Math.round(receb/c.total*100)):0;
-  const avista=!!c.pago;
-  document.getElementById('pag-title').textContent=`Pagamentos — Contrato #${c.id}`;
+  document.getElementById('pag-title').textContent=`Pagamentos — Contrato #${c.id} — ${nomeMesYM(ref)}`;
   const hoje=new Date().toISOString().slice(0,10);
   const barColor=quit?'var(--success)':'var(--accent)';
-  const itens=lista.length?lista.map(p=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;background:var(--surface2)"><span style="font-size:13px"><b>R$ ${fmtMoney(p.valor)}</b> <span style="color:var(--muted)">— ${fmtData(p.data)}</span></span><button class="btn btn-danger btn-sm" onclick="removerPagamento(${p.id})">Remover</button></div>`).join(''):'<div style="font-size:13px;color:var(--muted);padding:8px 0">Nenhum pagamento parcial lançado.</div>';
+  const itens=lista.length?lista.map(p=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;background:var(--surface2)"><span style="font-size:13px"><b>R$ ${fmtMoney(p.valor)}</b> <span style="color:var(--muted)">— ${fmtData(p.data)}</span></span><button class="btn btn-danger btn-sm" onclick="removerPagamento(${p.id})">Remover</button></div>`).join(''):'<div style="font-size:13px;color:var(--muted);padding:8px 0">Nenhum pagamento lançado neste mês.</div>';
   const statusBadge=quit?'<span class="badge badge-green">Pago</span>':(receb>0?'<span class="badge badge-blue">Parcial</span>':'<span class="badge badge-orange">Pendente</span>');
   let html=`
-    <div style="margin-bottom:6px">Cliente: <b>${cl.nome}</b> &nbsp;${statusBadge}</div>
+    <div style="margin-bottom:6px">Cliente: <b>${cl.nome}</b> &nbsp;${statusBadge} <span style="color:var(--muted);font-size:12px">· referente a ${nomeMesYM(ref)}</span></div>
     <div style="display:flex;justify-content:space-between;font-size:13px;margin:12px 0 6px">
       <span>Recebido: <b style="color:var(--success)">R$ ${fmtMoney(receb)}</b> / R$ ${fmtMoney(c.total)}</span>
       <span>Saldo: <b style="color:${saldo>0?'var(--danger)':'var(--success)'}">R$ ${fmtMoney(saldo)}</b></span>
     </div>
     <div class="prog-bar"><div class="prog-fill" style="width:${pct}%;background:${barColor}"></div></div>
     <hr class="divider">
-    <div class="lbl-f" style="margin-bottom:8px">Pagamentos lançados</div>
+    <div class="lbl-f" style="margin-bottom:8px">Pagamentos deste mês</div>
     ${itens}`;
-  if(saldo>0&&!avista){
+  if(saldo>0){
     html+=`
     <hr class="divider">
     <div class="lbl-f" style="margin-bottom:8px">Adicionar pagamento</div>
@@ -2920,30 +3019,32 @@ function renderPagModal(){
       <div class="form-group"><label>DATA</label><input id="pag-data" type="date" value="${hoje}"></div>
       <button class="btn btn-primary" onclick="addPagamento()">Adicionar</button>
     </div>
-    <button class="btn btn-success" style="margin-top:12px;width:100%;justify-content:center" onclick="quitarAvista()">Quitar tudo (pago à vista)</button>`;
-  }
-  if(avista){
-    html+=`<hr class="divider"><button class="btn btn-ghost" style="width:100%;justify-content:center" onclick="desfazerAvista()">Desfazer pago à vista</button>`;
+    <button class="btn btn-success" style="margin-top:12px;width:100%;justify-content:center" onclick="quitarMes()">Quitar este mês (R$ ${fmtMoney(saldo)})</button>`;
   }
   document.getElementById('pag-content').innerHTML=html;
 }
-function _pagSalvar(lista,pagoFlag){
-  DB.set('contratos',DB.get('contratos').map(x=>x.id===_pagContratoId?{...x,...(lista!==null?{pagamentos:lista}:{}),...(pagoFlag!==null?{pago:pagoFlag}:{})}:x));
+function _pagSalvar(lista){
+  DB.set('contratos',DB.get('contratos').map(x=>x.id===_pagContratoId?{...x,pagamentos:lista}:x));
   renderPagModal();renderFinanceiro();updateBadges();
 }
 function addPagamento(){
   const c=DB.get('contratos').find(x=>x.id===_pagContratoId);if(!c)return;
+  const ref=_pagMesRef||inicioYM(c);
   const v=Number(document.getElementById('pag-valor').value);
   const d=document.getElementById('pag-data').value||new Date().toISOString().slice(0,10);
   if(!v||v<=0){alert('Informe um valor de pagamento válido.');return;}
-  _pagSalvar(pgLista(c).concat([{id:Date.now(),valor:v,data:d}]),null);
+  _pagSalvar(pgLista(c).concat([{id:Date.now(),valor:v,data:d,mesRef:ref}]));
 }
 function removerPagamento(pid){
   const c=DB.get('contratos').find(x=>x.id===_pagContratoId);if(!c)return;
-  _pagSalvar(pgLista(c).filter(p=>p.id!==pid),null);
+  _pagSalvar(pgLista(c).filter(p=>p.id!==pid));
 }
-function quitarAvista(){_pagSalvar(null,true);}
-function desfazerAvista(){if(!confirm('Desfazer o pagamento à vista deste contrato?'))return;_pagSalvar(null,false);}
+function quitarMes(){
+  const c=DB.get('contratos').find(x=>x.id===_pagContratoId);if(!c)return;
+  const ref=_pagMesRef||inicioYM(c);
+  const saldo=pgSaldoMes(c,ref);if(saldo<=0)return;
+  _pagSalvar(pgLista(c).concat([{id:Date.now(),valor:saldo,data:new Date().toISOString().slice(0,10),mesRef:ref}]));
+}
 
 // ========================
 // MESES — Contratos agrupados pelo mês de início
@@ -3026,6 +3127,16 @@ function navMes(delta){
   const novoI=i+delta;
   if(novoI<0||novoI>=meses.length)return; // chegou no fim
   sel.value=meses[novoI];renderMeses();
+}
+// Navegação de mês da aba Financeiro (inclui meses projetados)
+function finNavMes(delta){
+  const sel=document.getElementById('fin-mes-seletor');
+  const meses=obterMesesFinanceiro();
+  const i=meses.indexOf(sel.value);
+  if(i<0)return;
+  const novoI=i+delta;
+  if(novoI<0||novoI>=meses.length)return;
+  sel.value=meses[novoI];renderFinanceiro();
 }
 
 // ========================
