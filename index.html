@@ -482,7 +482,6 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
     <div class="nav-section">Estoque &amp; Financeiro</div>
     <div class="nav-item" onclick="navTo('estoque',this)">Estoque &amp; Status</div>
     <div class="nav-item" onclick="navTo('financeiro',this)">Financeiro</div>
-    <div class="nav-item" onclick="navTo('meses',this)">Mensal</div>
     <div class="nav-section">Manutenção</div>
     <div class="nav-item" onclick="navTo('manutencao',this)">
       Revisão / Manutenção
@@ -781,32 +780,6 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
   </div></div>
 </div>
 
-<!-- MESES -->
-<div class="page" id="page-meses">
-  <div class="page-header"><h2>Contratos por Mês</h2><p>Visualize todos os contratos agrupados pelo mês de início</p></div>
-  <div class="card" style="margin-bottom:16px">
-    <div class="card-body" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap">
-      <div style="flex:1;min-width:200px">
-        <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Mês</label>
-        <select id="meses-seletor" onchange="renderMeses()"></select>
-      </div>
-      <div style="display:flex;gap:6px">
-        <button class="btn btn-ghost btn-sm" onclick="navMes(1)">← Anterior</button>
-        <button class="btn btn-ghost btn-sm" onclick="navMes(-1)">Próximo →</button>
-      </div>
-    </div>
-  </div>
-  <div class="stats-grid" id="meses-stats"></div>
-  <div class="card">
-    <div class="card-header"><h3 id="meses-titulo">—</h3></div>
-    <div class="card-body">
-      <table>
-        <thead><tr><th>Contrato</th><th>Cliente</th><th>Equipamentos</th><th>Início</th><th>Término</th><th>Valor</th><th>Status</th><th>Pgto.</th></tr></thead>
-        <tbody id="meses-tbody"></tbody>
-      </table>
-    </div>
-  </div>
-</div>
 
 </main>
 </div>
@@ -1297,7 +1270,7 @@ function navTo(pg,el){
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+pg).classList.add('active');
   if(el)el.classList.add('active');
-  ({dashboard:renderDashboard,equipamentos:renderEquipamentos,clientes:renderClientes,contratos:renderContratos,validade:renderValidade,entregas:renderEntregas,retiradas:renderRetiradas,manutencao:renderManutencao,template:renderTemplate,estoque:renderEstoque,financeiro:renderFinanceiro,meses:renderMeses,filiais:renderFiliais})[pg]?.();
+  ({dashboard:renderDashboard,equipamentos:renderEquipamentos,clientes:renderClientes,contratos:renderContratos,validade:renderValidade,entregas:renderEntregas,retiradas:renderRetiradas,manutencao:renderManutencao,template:renderTemplate,estoque:renderEstoque,financeiro:renderFinanceiro,filiais:renderFiliais})[pg]?.();
   // Fecha o menu lateral ao trocar de página no celular
   if(window.innerWidth<=768)toggleSidebar(false);
   // Aplica rótulos nas células das tabelas (pra ficarem legíveis no celular)
@@ -1671,9 +1644,12 @@ function selecionarCliente(id){
   document.getElementById('contrato-cliente').value=id;
   document.getElementById('contrato-cliente-busca').value=c.nome;
   document.getElementById('lista-cliente-busca').classList.remove('show');
+  // Preenche o local da obra com o endereço do cliente (só se estiver vazio; pode alterar depois)
+  const loc=document.getElementById('contrato-local');
+  if(loc&&!loc.value.trim()&&c.end)loc.value=c.end;
 }
 
-function addContratoItem(){contratoItens.push({equipId:'',qty:1,terc:0,periodo:'diario',qtdPeriodo:1,valor:0});renderContratoItens();}
+function addContratoItem(){contratoItens.unshift({equipId:'',qty:1,terc:0,periodo:'mensal',qtdPeriodo:1,valor:0});renderContratoItens();}
 function renderContratoItens(){
   const div=document.getElementById('contrato-itens-list');
   const semEst=document.getElementById('contrato-sem-estoque')?.checked;
@@ -1880,7 +1856,6 @@ function rerenderPaginaAtiva(){
   else if(id==='page-contratos')renderContratos();
   else if(id==='page-estoque')renderEstoque();
   else if(id==='page-financeiro')renderFinanceiro();
-  else if(id==='page-meses')renderMeses();
   else if(id==='page-dashboard')renderDashboard();
 }
 // Entrega feita: contrato pendente (agendado) vira ativo (em locação)
@@ -3051,83 +3026,6 @@ function quitarMes(){
 // ========================
 const MESES_NOMES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
-// Lista os meses (YYYY-MM) que têm pelo menos um contrato + o mês atual
-function obterMesesDisponiveis(){
-  const ct=DB.get('contratos');
-  const set=new Set();
-  // Sempre inclui o mês atual, mesmo sem contratos
-  const hoje=new Date();
-  set.add(`${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`);
-  ct.forEach(c=>{if(c.inicio)set.add(c.inicio.slice(0,7));});
-  return [...set].sort().reverse(); // mais recente primeiro
-}
-
-function renderMeses(){
-  const sel=document.getElementById('meses-seletor');
-  const meses=obterMesesDisponiveis();
-  // Mantém a seleção atual se ainda for válida; senão pega o mês mais recente
-  const atual=sel.value&&meses.includes(sel.value)?sel.value:meses[0];
-  sel.innerHTML=meses.map(m=>{
-    const [y,mm]=m.split('-');
-    return`<option value="${m}"${m===atual?' selected':''}>${MESES_NOMES[parseInt(mm)-1]} / ${y}</option>`;
-  }).join('');
-
-  const mes=sel.value;
-  const [yy,mm]=mes.split('-');
-  document.getElementById('meses-titulo').textContent=`${MESES_NOMES[parseInt(mm)-1]} de ${yy}`;
-
-  // Filtra contratos com data de início no mês selecionado
-  const ct=DB.get('contratos').filter(c=>c.inicio&&c.inicio.startsWith(mes));
-  const cls=DB.get('clientes'),eq=DB.get('equipamentos');
-
-  // Estatísticas do mês
-  const total=ct.length;
-  const fatTotal=ct.reduce((s,c)=>s+(c.total||0),0);
-  const fatPago=ct.reduce((s,c)=>s+pgRecebido(c),0);
-  const fatPendente=ct.filter(c=>c.status!=='cancelado').reduce((s,c)=>s+pgSaldo(c),0);
-  document.getElementById('meses-stats').innerHTML=`
-    <div class="stat-card blue"><div class="val">${total}</div><div class="lbl">Contratos no mês</div></div>
-    <div class="stat-card d1"><div class="val">R$ ${fmtMoney(fatTotal)}</div><div class="lbl">Valor Total</div></div>
-    <div class="stat-card green"><div class="val">R$ ${fmtMoney(fatPago)}</div><div class="lbl">Já Pago</div></div>
-    <div class="stat-card orange"><div class="val">R$ ${fmtMoney(fatPendente)}</div><div class="lbl">A Receber</div></div>`;
-
-  // Tabela de contratos
-  const tb=document.getElementById('meses-tbody');
-  if(!ct.length){tb.innerHTML='<tr><td colspan="8"><div class="empty-state"><p>Nenhum contrato iniciado neste mês</p></div></td></tr>';return;}
-  const hoje=new Date();hoje.setHours(0,0,0,0);
-  tb.innerHTML=ct.slice().sort((a,b)=>a.inicio.localeCompare(b.inicio)).map(c=>{
-    const cl=cls.find(x=>x.id===c.clienteId)||{nome:'—'};
-    const eqs=c.itens.map(it=>{const e=eq.find(x=>x.id==it.equipId);return e?`${e.nome} (${it.qty})`:'—';}).join(', ');
-    let vencAttr='';
-    if(!pgQuitado(c)&&c.status!=='cancelado'&&c.fim){
-      const f=new Date(c.fim);f.setHours(0,0,0,0);
-      if(f<hoje)vencAttr=' data-vencimento="vencido"';
-    }
-    const statusBg={ativo:'badge-green',pendente:'badge-orange',finalizado:'badge-blue',cancelado:'badge-gray'};
-    return`<tr data-status="${c.status}"${vencAttr}>
-      <td><b>#${c.id}</b></td>
-      <td>${cl.nome}</td>
-      <td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${eqs}">${eqs}</td>
-      <td>${fmtData(c.inicio)}</td>
-      <td>${c.fim?fmtData(c.fim):'—'}</td>
-      <td><b style="color:var(--success)">R$ ${fmtMoney(c.total)}</b></td>
-      <td><span class="badge ${statusBg[c.status]||'badge-gray'}">${c.status}</span></td>
-      <td>${pgQuitado(c)?'<span class="badge badge-green">Pago</span>':(pgRecebido(c)>0?'<span class="badge badge-blue">Parcial</span>':'<span class="badge badge-orange">Pendente</span>')}</td>
-    </tr>`;
-  }).join('');
-  setTimeout(applyTableLabels,30);
-}
-
-// Navega entre os meses disponíveis com os botões Anterior / Próximo
-function navMes(delta){
-  const sel=document.getElementById('meses-seletor');
-  const meses=obterMesesDisponiveis();
-  const i=meses.indexOf(sel.value);
-  if(i<0)return;
-  const novoI=i+delta;
-  if(novoI<0||novoI>=meses.length)return; // chegou no fim
-  sel.value=meses[novoI];renderMeses();
-}
 // Navegação de mês da aba Financeiro (inclui meses projetados)
 function finNavMes(delta){
   const sel=document.getElementById('fin-mes-seletor');
