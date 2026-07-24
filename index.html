@@ -996,7 +996,7 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" onclick="closeModal('modal-contrato')">Cancelar</button>
-      <button class="btn btn-primary" onclick="salvarContrato()">Criar Contrato</button>
+      <button class="btn btn-primary" id="btn-salvar-contrato" onclick="salvarContrato()">Criar Contrato</button>
     </div>
   </div>
 </div>
@@ -1585,6 +1585,7 @@ function resetClienteForm(){['cliente-id','cliente-nome','cliente-doc','cliente-
 // CONTRATOS
 // ========================
 let contratoItens=[];
+let _contratoEditId=null;
 
 // Calcula quantas unidades de um equipamento estão DISPONÍVEIS para um novo aluguel.
 // Considera o estoque total menos o que está em manutenção e menos o que já está
@@ -1621,6 +1622,9 @@ function populateContratoSelects(){
   const se=document.getElementById('contrato-sem-estoque');if(se)se.checked=false;
   const av=document.getElementById('contrato-avulso');if(av)av.checked=false;
   const pe=document.getElementById('contrato-paga-em');if(pe)pe.value='mesmo';
+  _contratoEditId=null;
+  const tt=document.getElementById('contrato-modal-title');if(tt)tt.textContent='Novo Contrato de Aluguel';
+  const bb=document.getElementById('btn-salvar-contrato');if(bb)bb.textContent='Criar Contrato';
   contratoItens=[];renderContratoItens();
   document.getElementById('contrato-inicio').value=hoje();
   const dn=document.getElementById('contrato-desconto');if(dn)dn.value='';
@@ -1758,13 +1762,38 @@ function removeContratoItem(i){contratoItens.splice(i,1);renderContratoItens();}
 document.addEventListener('click',e=>{
   if(!e.target.closest('.busca-select'))document.querySelectorAll('.busca-select-lista.show').forEach(l=>l.classList.remove('show'));
 });
+// Abre o modal já preenchido para EDITAR um contrato existente
+function editarContrato(id){
+  const c=DB.get('contratos').find(x=>x.id==id);if(!c)return;
+  openModal('modal-contrato'); // reseta o formulário e popula filiais
+  _contratoEditId=id;
+  const cl=DB.get('clientes').find(x=>x.id==c.clienteId);
+  document.getElementById('contrato-cliente').value=c.clienteId||'';
+  document.getElementById('contrato-cliente-busca').value=cl?cl.nome:'';
+  document.getElementById('contrato-filial').value=c.filialId||'';
+  document.getElementById('contrato-inicio').value=c.inicio||'';
+  document.getElementById('contrato-fim').value=c.fim||'';
+  document.getElementById('contrato-pagamento').value=c.pagamento||'À Vista';
+  document.getElementById('contrato-status').value=c.status||'pendente';
+  document.getElementById('contrato-paga-em').value=c.pagaEm||'mesmo';
+  document.getElementById('contrato-local').value=c.local||'';
+  document.getElementById('contrato-sem-estoque').checked=!!c.semEstoque;
+  document.getElementById('contrato-avulso').checked=!!c.avulso;
+  document.getElementById('contrato-obs').value=c.obs||'';
+  document.getElementById('contrato-desconto').value=c.desconto||'';
+  document.getElementById('contrato-frete').value=c.frete||'';
+  contratoItens=JSON.parse(JSON.stringify(c.itens||[]));
+  renderContratoItens();
+  const tt=document.getElementById('contrato-modal-title');if(tt)tt.textContent='Editar Contrato #'+c.id;
+  const bb=document.getElementById('btn-salvar-contrato');if(bb)bb.textContent='Salvar Alterações';
+}
 function salvarContrato(){
   const cId=parseInt(document.getElementById('contrato-cliente').value);
   if(!cId){alert('Selecione um cliente.');return;}
   if(!contratoItens.length||contratoItens.some(it=>!it.equipId)){alert('Adicione ao menos um equipamento.');return;}
   const semEstoque=document.getElementById('contrato-sem-estoque').checked;
-  // Verifica disponibilidade final antes de salvar (proteção extra) — não aplica se for "sem estoque"
-  if(!semEstoque)for(let i=0;i<contratoItens.length;i++){
+  // Verifica disponibilidade final antes de salvar (proteção extra) — não aplica se for "sem estoque" nem na edição
+  if(!semEstoque&&!_contratoEditId)for(let i=0;i<contratoItens.length;i++){
     const it=contratoItens[i];
     const disp=disponibilidadeEquip(it.equipId,i);
     const proprio=(it.qty||0)-(it.terc||0);
@@ -1778,8 +1807,15 @@ function salvarContrato(){
   const frete=parseFloat(document.getElementById('contrato-frete').value)||0;
   const total=Math.max(0,subtotal-desconto+frete);
   const filialId=parseInt(document.getElementById('contrato-filial').value)||null;
-  const obj={id:DB.nextId('contratos'),clienteId:cId,filialId,inicio:document.getElementById('contrato-inicio').value,fim:document.getElementById('contrato-fim').value,pagamento:document.getElementById('contrato-pagamento').value,status:document.getElementById('contrato-status').value,local:document.getElementById('contrato-local').value,itens:JSON.parse(JSON.stringify(contratoItens)),total,desconto,frete,pago:false,pagamentos:[],paraRetirada:false,semEstoque,avulso:document.getElementById('contrato-avulso').checked,pagaEm:document.getElementById('contrato-paga-em').value,obs:document.getElementById('contrato-obs').value,criadoEm:new Date().toISOString(),renovadoDe:null};
-  let ct=DB.get('contratos');ct.push(obj);DB.set('contratos',ct);
+  const campos={clienteId:cId,filialId,inicio:document.getElementById('contrato-inicio').value,fim:document.getElementById('contrato-fim').value,pagamento:document.getElementById('contrato-pagamento').value,status:document.getElementById('contrato-status').value,local:document.getElementById('contrato-local').value,itens:JSON.parse(JSON.stringify(contratoItens)),total,desconto,frete,semEstoque,avulso:document.getElementById('contrato-avulso').checked,pagaEm:document.getElementById('contrato-paga-em').value,obs:document.getElementById('contrato-obs').value};
+  if(_contratoEditId){
+    // Edição: atualiza o contrato preservando pagamentos, pago, retirada, criadoEm e renovadoDe
+    DB.set('contratos',DB.get('contratos').map(x=>x.id==_contratoEditId?{...x,...campos}:x));
+  }else{
+    const obj={id:DB.nextId('contratos'),...campos,pago:false,pagamentos:[],paraRetirada:false,criadoEm:new Date().toISOString(),renovadoDe:null};
+    let ct=DB.get('contratos');ct.push(obj);DB.set('contratos',ct);
+  }
+  _contratoEditId=null;
   recalcularEmUso();
   closeModal('modal-contrato');contratoItens=[];document.getElementById('contrato-desconto').value='';document.getElementById('contrato-frete').value='';renderContratos();updateBadges();
 }
@@ -1830,6 +1866,7 @@ function renderContratos(q=''){
       <td style="white-space:nowrap">
         <button class="btn btn-ghost btn-sm" onclick="verContrato(${c.id})">Contrato</button>
         <button class="btn btn-info btn-sm" onclick="verFatura(${c.id})">Fatura</button>
+        <button class="btn btn-ghost btn-sm" onclick="editarContrato(${c.id})">Editar</button>
         <button class="btn btn-warning btn-sm" onclick="abrirRenovar(${c.id})">Renovar</button>
         ${c.status==='ativo'?`<button class="btn btn-info btn-sm" onclick="abrirRetiradaParcial(${c.id})">Retirada parcial</button>`:''}
         <button class="btn btn-danger btn-sm" onclick="delContratoConfirm(${c.id})">Excluir</button>
