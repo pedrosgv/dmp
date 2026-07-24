@@ -949,7 +949,7 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
           <select id="contrato-status"><option value="pendente">Pendente</option><option value="ativo">Ativo</option><option value="finalizado">Finalizado</option><option value="cancelado">Cancelado</option></select>
         </div>
         <div class="form-group"><label>QUANDO O CLIENTE PAGA</label>
-          <select id="contrato-paga-em"><option value="mesmo">Em dia (no próprio mês)</option><option value="seguinte">Mês seguinte (atrasado)</option><option value="anterior">Mês anterior (adiantado)</option></select>
+          <select id="contrato-paga-em"><option value="mesmo">Em dia (no próprio mês)</option><option value="seguinte">Mês seguinte (atrasado 1 mês)</option><option value="seguinte2">Atrasado 2 meses</option><option value="anterior">Mês anterior (adiantado)</option></select>
         </div>
         <div class="form-group full"><label>LOCAL DE ENTREGA / OBRA</label><input id="contrato-local" placeholder="Endereço da obra ou local de entrega"></div>
         <div class="form-group full">
@@ -2979,7 +2979,7 @@ function pgQuitado(c){return !!c.pago||((c.total||0)>0&&pgLista(c).reduce((s,p)=
 
 // ======= RENOVAÇÃO / PROJEÇÃO MENSAL (Parte 2 e 3) =======
 const PROJ_MESES=60;
-const PAGA_OFFSET={mesmo:0,seguinte:1,anterior:-1};
+const PAGA_OFFSET={mesmo:0,seguinte:1,seguinte2:2,anterior:-1};
 function ymDe(s){return (s||'').slice(0,7);}
 function inicioYM(c){return ymDe(c.inicio);}
 function addMesYM(ym,n){const [y,m]=ym.split('-').map(Number);const d=new Date(y,m-1+n,1);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;}
@@ -3014,7 +3014,12 @@ function obterMesesFinanceiro(){
   const hoje=new Date();const hojeYM=`${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
   if(!ct.length)return [hojeYM];
   let minYM=null,maxYM=null;
-  ct.forEach(c=>{const s=inicioYM(c);if(!minYM||s<minYM)minYM=s;const last=addMesYM(s,(c.avulso?1:PROJ_MESES));if(!maxYM||last>maxYM)maxYM=last;});
+  ct.forEach(c=>{
+    const s=inicioYM(c),N=c.avulso?1:PROJ_MESES,off=PAGA_OFFSET[c.pagaEm||'mesmo']||0;
+    const first=addMesYM(s,off),last=addMesYM(s,(N-1)+off); // range de EXIBIÇÃO (já com o deslocamento)
+    if(!minYM||first<minYM)minYM=first;
+    if(!maxYM||last>maxYM)maxYM=last;
+  });
   if(minYM>hojeYM)minYM=hojeYM;
   const out=[];let cur=minYM,guard=0;
   while(cur<=maxYM&&guard<1000){out.push(cur);cur=addMesYM(cur,1);guard++;}
