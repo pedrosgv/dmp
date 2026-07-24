@@ -1795,25 +1795,31 @@ function renderContratos(q=''){
     const cl=cls.find(x=>x.id===c.clienteId)||{nome:'—'};
     const eqs=c.itens.map(it=>{const e=eq.find(x=>x.id==it.equipId);return e?`${it.qty}x ${e.nome}`:'—';}).join(', ');
     const dur=c.itens.map(it=>{const p=it.periodo==='diario'?'d':it.periodo==='semanal'?'sem':'mês';return`${it.qtdPeriodo||1}${p}`;}).join(', ');
-    const dias=c.fim?diasAte(c.fim):null;
-    const fimTxt=c.fim?fmtData(c.fim):'—';
-    let fimBadge='';
-    if(c.fim&&c.status==='ativo'){
-      if(dias<=0)fimBadge='<span class="badge badge-red" style="margin-left:4px">Vencido</span>';
-      else if(dias<=7)fimBadge=`<span class="badge badge-warning" style="margin-left:4px">${dias}d</span>`;
+    const recorrente=!c.avulso;
+    const hojeC=new Date();hojeC.setHours(0,0,0,0);
+    const fmtD=x=>`${String(x.getDate()).padStart(2,'0')}/${String(x.getMonth()+1).padStart(2,'0')}/${x.getFullYear()}`;
+    let fimCel,vencAttr='';
+    if(c.status==='ativo'&&recorrente){
+      // Contrato que renova: mostra o fim do CICLO ATUAL + "renova" (não é vencido)
+      const at=cicloAtual(c,hojeC);
+      fimCel=`${at?fmtD(at.fim):'—'} <span class="badge badge-green" style="margin-left:4px">renova</span>`;
+    }else{
+      // Avulso / não-ativo: mantém a data fixa e o aviso de vencido
+      const dias=c.fim?diasAte(c.fim):null;
+      let fimBadge='';
+      if(c.fim&&c.status==='ativo'){
+        if(dias<=0){fimBadge='<span class="badge badge-red" style="margin-left:4px">Vencido</span>';vencAttr=' data-vencimento="vencido"';}
+        else if(dias<=7){fimBadge=`<span class="badge badge-warning" style="margin-left:4px">${dias}d</span>`;vencAttr=' data-vencimento="proximo"';}
+      }
+      fimCel=`${c.fim?fmtData(c.fim):'—'}${fimBadge}`;
     }
     const renovBt=c.renovadoDe?`<span class="badge badge-blue" style="margin-right:4px">Renovação</span>`:'';
-    let vencAttr='';
-    if(c.fim&&c.status==='ativo'){
-      if(dias<=0)vencAttr=' data-vencimento="vencido"';
-      else if(dias<=7)vencAttr=' data-vencimento="proximo"';
-    }
     return`<tr data-status="${c.status}"${vencAttr}>
       <td><b>#${c.id}</b>${renovBt}</td>
       <td>${cl.nome}</td>
       <td style="max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${eqs}</td>
-      <td>${fmtData(c.inicio)}</td><td>${dur}</td>
-      <td>${fimTxt}${fimBadge}</td>
+      <td>${fmtData(c.inicio)}${(c.status==='ativo'&&recorrente)?'<br><span style="font-size:11px;color:var(--muted)">mensal</span>':''}</td><td>${dur}</td>
+      <td>${fimCel}</td>
       <td><b style="color:var(--success)">R$ ${fmtMoney(c.total)}</b></td>
       <td><select class="status-select status-${c.status}" onchange="alterarStatus(${c.id},this.value)" title="Clique para alterar o status">
         <option value="pendente"${c.status==='pendente'?' selected':''}>Pendente</option>
@@ -1992,11 +1998,14 @@ function confirmarRenovacao(){
 // VALIDADE
 // ========================
 function renderValidade(){
-  const cts=DB.get('contratos').filter(c=>c.status==='ativo'&&c.fim);
   const cls=DB.get('clientes'),eq=DB.get('equipamentos');
-  const vencidos=cts.filter(c=>diasAte(c.fim)<=0);
-  const em7=cts.filter(c=>diasAte(c.fim)>0&&diasAte(c.fim)<=7);
-  const em30=cts.filter(c=>diasAte(c.fim)>7&&diasAte(c.fim)<=30);
+  const hoje=new Date();hoje.setHours(0,0,0,0);
+  // Uma linha por contrato ativo com o mês atual em aberto (some quando pagar; volta no próximo ciclo)
+  const rows=[];
+  DB.get('contratos').forEach(c=>{const v=cicloVencimento(c,hoje);if(v)rows.push({c,v});});
+  const vencidos=rows.filter(r=>r.v.dias<=0);
+  const em7=rows.filter(r=>r.v.dias>0&&r.v.dias<=7);
+  const em30=rows.filter(r=>r.v.dias>7&&r.v.dias<=30);
 
   document.getElementById('validade-stats').innerHTML=`
     <div class="stat-card red"><div class="val">${vencidos.length}</div><div class="lbl">Vencidos / Hoje</div></div>
@@ -2005,22 +2014,23 @@ function renderValidade(){
 
   function renderRows(arr,showDias){
     if(!arr.length)return'<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">Nenhum contrato nesta categoria</td></tr>';
-    return arr.map(c=>{
+    return arr.map(({c,v})=>{
       const cl=cls.find(x=>x.id===c.clienteId)||{nome:'—'};
       const eqs=c.itens.map(it=>{const e=eq.find(x=>x.id==it.equipId);return e?`${it.qty}x ${e.nome}`:'—';}).join(', ');
-      const dias=diasAte(c.fim);
+      const dias=v.dias;
       const diasTxt=dias<=0?`<span class="badge badge-red">${Math.abs(dias)} dia(s) atrás</span>`:`<span class="badge badge-warning">${dias} dia(s)</span>`;
       const vencAttr=dias<=0?' data-vencimento="vencido"':dias<=7?' data-vencimento="proximo"':'';
+      const fimTxt=`${String(v.fim.getDate()).padStart(2,'0')}/${String(v.fim.getMonth()+1).padStart(2,'0')}/${v.fim.getFullYear()}`;
       return`<tr data-status="ativo"${vencAttr}>
         <td><b>#${c.id}</b></td>
         <td>${cl.nome}<br><span style="font-size:11px;color:var(--muted)">${cl.tel||''}</span></td>
         <td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${eqs}</td>
         <td>${fmtData(c.inicio)}</td>
-        <td>${fmtData(c.fim)}</td>
+        <td>${fimTxt}<br><span style="font-size:11px;color:var(--muted)">ref. ${nomeMesYM(v.refYM)}</span></td>
         ${showDias?`<td>${diasTxt}</td>`:''}
         <td style="white-space:nowrap">
           <button class="btn btn-ghost btn-sm" onclick="verContrato(${c.id})">Contrato</button>
-          <button class="btn btn-warning btn-sm" onclick="abrirRenovar(${c.id})">Renovar</button>
+          <button class="btn btn-primary btn-sm" onclick="abrirPagamentos(${c.id},'${v.refYM}')">Pagamentos</button>
           <button class="btn btn-info btn-sm" onclick="enviarParaRetirada(${c.id})">Enviar p/ retirada</button>
         </td>
       </tr>`;
@@ -2079,7 +2089,7 @@ function renderEntregas(){
 // RETIRADAS
 // ========================
 function renderRetiradas(){
-  const cts=DB.get('contratos').filter(c=>c.status==='ativo'&&((c.fim&&diasAte(c.fim)<=7)||c.paraRetirada));
+  const cts=DB.get('contratos').filter(c=>c.status==='ativo'&&c.paraRetirada);
   const cls=DB.get('clientes'),eq=DB.get('equipamentos');
   const atrasadas=cts.filter(c=>c.fim&&diasAte(c.fim)<0);
   const hoje_=cts.filter(c=>c.fim&&diasAte(c.fim)===0);
@@ -2911,8 +2921,7 @@ function renderFinanceiro(){
     else if(receb>0)pagCel=`<span class="badge badge-blue">Parcial</span><div style="font-size:11px;color:var(--muted);margin-top:3px">R$ ${fmtMoney(receb)} / ${fmtMoney(c.total)} · falta R$ ${fmtMoney(saldo)}</div>`;
     else pagCel='<span class="badge badge-orange">Pendente</span>';
     const eqs=(c.itens||[]).map(it=>{const e=eq.find(y=>y.id==it.equipId);return e?`${e.nome} (${it.qty})`:'—';}).join(', ')||'—';
-    const refBadge=x.refYM!==mesAtual?`<span class="badge badge-orange" title="Cobrança referente a ${nomeMesYM(x.refYM)}" style="margin-left:5px">ref. ${nomeMesCurtoYM(x.refYM)}</span>`:'';
-    return`<tr data-status="${c.status}"${vencAttr}><td>#${c.id}${refBadge}</td><td>${cl.nome}</td><td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${eqs}">${eqs}</td><td style="white-space:nowrap">${x.periodo}</td><td><b>R$ ${fmtMoney(c.total)}</b></td><td>${fmtDataD(x.fim)}</td><td>${pagCel}</td><td><button class="btn btn-primary btn-sm" onclick="abrirPagamentos(${c.id},'${x.refYM}')">Pagamentos</button></td></tr>`;
+    return`<tr data-status="${c.status}"${vencAttr}><td>#${c.id}</td><td>${cl.nome}</td><td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${eqs}">${eqs}</td><td style="white-space:nowrap">${x.periodo}</td><td><b>R$ ${fmtMoney(c.total)}</b></td><td>${fmtDataD(x.fim)}</td><td>${pagCel}</td><td style="white-space:nowrap"><button class="btn btn-primary btn-sm" onclick="abrirPagamentos(${c.id},'${x.refYM}')">Pagamentos</button>${(c.status==='ativo'&&!c.paraRetirada)?` <button class="btn btn-info btn-sm" onclick="enviarParaRetirada(${c.id})">P/ retirada</button>`:''}</td></tr>`;
   };
   // Agrupa por dia do início (dia do ciclo), em ordem
   const grupos={};
@@ -2938,7 +2947,6 @@ function ymDe(s){return (s||'').slice(0,7);}
 function inicioYM(c){return ymDe(c.inicio);}
 function addMesYM(ym,n){const [y,m]=ym.split('-').map(Number);const d=new Date(y,m-1+n,1);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;}
 function nomeMesYM(ym){const [y,m]=ym.split('-');return `${MESES_NOMES[parseInt(m)-1]}/${y}`;}
-function nomeMesCurtoYM(ym){const [y,m]=ym.split('-');return `${MESES_NOMES[parseInt(m)-1].slice(0,3).toLowerCase()}/${y.slice(2)}`;}
 // Período (ciclo aniversário) do ciclo i a partir da data de início
 function cicloPeriodo(inicio,i){
   const d=new Date(inicio+'T12:00:00');
@@ -2983,6 +2991,30 @@ function pgRecebidoMes(c,ref){
 }
 function pgSaldoMes(c,ref){return Math.max(0,(c.total||0)-pgRecebidoMes(c,ref));}
 function pgQuitadoMes(c,ref){return (c.total||0)>0&&pgRecebidoMes(c,ref)>=(c.total||0);}
+function diasAteData(d,hoje){return Math.round((d-hoje)/86400000);}
+// Vencimento inteligente: retorna o ciclo mais ANTIGO ainda NÃO pago cujo vencimento (fim do ciclo)
+// já chegou ou está a até 30 dias. Ao pagar o mês, ele some; volta no próximo ciclo. Marcado p/ retirada não entra.
+function cicloVencimento(c,hoje){
+  if(c.status!=='ativo'||c.paraRetirada||!c.inicio)return null;
+  const N=c.avulso?1:PROJ_MESES,startYM=inicioYM(c);
+  for(let i=0;i<N;i++){
+    const refYM=addMesYM(startYM,i);
+    if(pgQuitadoMes(c,refYM))continue;
+    const fim=cicloPeriodo(c.inicio,i).fim;
+    const dias=diasAteData(fim,hoje);
+    return dias<=30?{i,refYM,fim,dias}:null;
+  }
+  return null;
+}
+// Ciclo (mês) em que o contrato está HOJE — usado pra mostrar o período atual na lista de contratos
+function cicloAtual(c,hoje){
+  if(!c.inicio)return null;
+  const d=new Date(c.inicio+'T12:00:00'),start=new Date(d.getFullYear(),d.getMonth(),d.getDate());
+  let i=0;
+  if(hoje>=start){i=(hoje.getFullYear()-start.getFullYear())*12+(hoje.getMonth()-start.getMonth());if(hoje.getDate()<start.getDate())i--;if(i<0)i=0;}
+  const N=c.avulso?1:PROJ_MESES;if(i>=N)i=N-1;
+  const p=cicloPeriodo(c.inicio,i);return {i,ini:p.ini,fim:p.fim};
+}
 
 let _pagContratoId=null;
 let _pagMesRef=null;
@@ -3024,7 +3056,7 @@ function renderPagModal(){
 }
 function _pagSalvar(lista){
   DB.set('contratos',DB.get('contratos').map(x=>x.id===_pagContratoId?{...x,pagamentos:lista}:x));
-  renderPagModal();renderFinanceiro();updateBadges();
+  renderPagModal();rerenderPaginaAtiva();
 }
 function addPagamento(){
   const c=DB.get('contratos').find(x=>x.id===_pagContratoId);if(!c)return;
@@ -3077,15 +3109,16 @@ function renderDashboard(){
   document.getElementById('dash-contratos').innerHTML=ct.slice(-5).reverse().map(c=>{const cl=cls.find(x=>x.id===c.clienteId)||{nome:'—'};return`<tr><td>${cl.nome}</td><td>${c.itens.length} item(ns)</td><td><span class="badge ${bg[c.status]}">${c.status}</span></td></tr>`;}).join('')||'<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:18px">Sem contratos</td></tr>';
   // Alertas
   let alertas='';
-  const vencidos=ct.filter(c=>c.status==='ativo'&&c.fim&&diasAte(c.fim)<=0);
-  const prest7=ct.filter(c=>c.status==='ativo'&&c.fim&&diasAte(c.fim)>0&&diasAte(c.fim)<=7);
-  if(vencidos.length)alertas+=`<div class="alert alert-danger">🔴 <b>${vencidos.length} contrato(s) vencido(s)</b> — <a href="#" onclick="navTo('validade',null);return false" style="color:inherit">Ver</a></div>`;
-  if(prest7.length)alertas+=`<div class="alert alert-warning">🟡 <b>${prest7.length} contrato(s)</b> vencem em até 7 dias — <a href="#" onclick="navTo('validade',null);return false" style="color:inherit">Ver</a></div>`;
+  const hoje=new Date();hoje.setHours(0,0,0,0);
+  const vencidos=ct.filter(c=>{const v=cicloVencimento(c,hoje);return v&&v.dias<=0;});
+  const prest7=ct.filter(c=>{const v=cicloVencimento(c,hoje);return v&&v.dias>0&&v.dias<=7;});
+  if(vencidos.length)alertas+=`<div class="alert alert-danger">🔴 <b>${vencidos.length} cobrança(s) vencida(s)</b> (aguardando pagamento) — <a href="#" onclick="navTo('validade',null);return false" style="color:inherit">Ver</a></div>`;
+  if(prest7.length)alertas+=`<div class="alert alert-warning">🟡 <b>${prest7.length} cobrança(s)</b> vencem em até 7 dias — <a href="#" onclick="navTo('validade',null);return false" style="color:inherit">Ver</a></div>`;
   // Entregas a fazer (agendados com início hoje ou atrasado)
   const entregasDev=ct.filter(c=>c.status==='pendente'&&c.inicio&&diasAte(c.inicio)<=0);
   if(entregasDev.length)alertas+=`<div class="alert alert-info">📦 <b>${entregasDev.length} entrega(s)</b> para fazer (hoje ou atrasada) — <a href="#" onclick="navTo('entregas',null);return false" style="color:inherit">Ver</a></div>`;
-  // Retiradas a fazer (vencidas ou marcadas para retirada)
-  const retiradasDev=ct.filter(c=>(c.status==='ativo'&&((c.fim&&diasAte(c.fim)<=0)||c.paraRetirada))||temRetiradaParcial(c));
+  // Retiradas a fazer (apenas marcadas para retirada + parciais agendadas)
+  const retiradasDev=ct.filter(c=>(c.status==='ativo'&&c.paraRetirada)||temRetiradaParcial(c));
   if(retiradasDev.length)alertas+=`<div class="alert alert-warning">📥 <b>${retiradasDev.length} retirada(s)</b> para fazer — <a href="#" onclick="navTo('retiradas',null);return false" style="color:inherit">Ver</a></div>`;
   // Revisões
   const equipRevisao={};
@@ -3103,8 +3136,9 @@ function renderDashboard(){
 // ========================
 function updateBadges(){
   const ct=DB.get('contratos');
+  const hoje=new Date();hoje.setHours(0,0,0,0);
   document.getElementById('badge-contratos').textContent=ct.filter(c=>c.status==='ativo').length;
-  const venc=ct.filter(c=>c.status==='ativo'&&c.fim&&diasAte(c.fim)<=7).length;
+  const venc=ct.filter(c=>{const v=cicloVencimento(c,hoje);return v&&v.dias<=7;}).length;
   const bv=document.getElementById('badge-vencendo');bv.textContent=venc;bv.style.display=venc?'':'none';
   // Manutenções vencidas
   const manuts=DB.get('manutencoes');const eq=DB.get('equipamentos');
@@ -3115,7 +3149,7 @@ function updateBadges(){
   // Entregas pendentes atrasadas/hoje e retiradas devidas
   const entr=ct.filter(c=>c.status==='pendente'&&diasAte(c.inicio)<=0).length;
   const be=document.getElementById('badge-entregas');be.textContent=entr;be.style.display=entr?'':'none';
-  const retr=ct.filter(c=>(c.status==='ativo'&&((c.fim&&diasAte(c.fim)<=0)||c.paraRetirada))||temRetiradaParcial(c)).length;
+  const retr=ct.filter(c=>(c.status==='ativo'&&c.paraRetirada)||temRetiradaParcial(c)).length;
   const br=document.getElementById('badge-retiradas');br.textContent=retr;br.style.display=retr?'':'none';
 }
 
