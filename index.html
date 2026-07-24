@@ -671,6 +671,11 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
 <!-- TEMPLATE -->
 <div class="page" id="page-template">
   <div class="page-header"><h2>Modelo de Contrato &amp; Fatura</h2><p>Edite os textos padrão usados em contratos e faturas</p></div>
+  <div class="template-section">
+    <h4>Backup / Segurança</h4>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Baixe uma cópia de segurança com <b>TODOS os seus dados</b> (equipamentos, clientes, contratos, manutenções, filiais e configurações). Guarde o arquivo em local seguro — é sua garantia caso algo aconteça na nuvem. Recomendado fazer de tempos em tempos.</p>
+    <button class="btn btn-primary" onclick="exportarBackup()">⬇ Baixar backup (todos os dados)</button>
+  </div>
   <div class="alert alert-info">Esses dados preenchem automaticamente todos os novos contratos e faturas.</div>
   <div class="template-section">
     <h4>Dados da Empresa (Locador)</h4>
@@ -2678,6 +2683,25 @@ function delFilialConfirm(id){
 // ========================
 // TEMPLATE
 // ========================
+// Exporta uma cópia de segurança (JSON) com todos os dados — independente da nuvem
+function exportarBackup(){
+  const dados={
+    _meta:{sistema:'DMP Sistema',exportadoEm:new Date().toISOString(),versao:1},
+    equipamentos:DB.get('equipamentos'),
+    clientes:DB.get('clientes'),
+    contratos:DB.get('contratos'),
+    manutencoes:DB.get('manutencoes'),
+    filiais:DB.get('filiais'),
+    template:DB.getObj('template',{})
+  };
+  const blob=new Blob([JSON.stringify(dados,null,2)],{type:'application/json;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download=`dmp-backup-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a);a.click();document.body.removeChild(a);
+  setTimeout(()=>URL.revokeObjectURL(url),5000);
+  alert(`Backup baixado! ✓\n\nContratos: ${dados.contratos.length}\nClientes: ${dados.clientes.length}\nEquipamentos: ${dados.equipamentos.length}\nManutenções: ${dados.manutencoes.length}\n\nGuarde o arquivo em local seguro.`);
+}
 function renderTemplate(){
   const t=DB.getObj('template',TPL_DEF);
   const map={empresaNome:'tpl-empresa-nome',empresaDoc:'tpl-empresa-doc',empresaTel:'tpl-empresa-tel',empresaEnd:'tpl-empresa-end',cidade:'tpl-cidade',obrigacoes:'tpl-obrigacoes',multa:'tpl-multa',foro:'tpl-foro',obs:'tpl-obs'};
