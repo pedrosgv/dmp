@@ -583,6 +583,10 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
   <div class="page-header"><h2>Entregas</h2><p>Contratos agendados aguardando entrega ao cliente</p></div>
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:13px;margin-bottom:22px" id="entregas-stats"></div>
   <div class="card" style="margin-bottom:16px">
+    <div class="card-header"><h3>Itens a entregar (ajustes de contrato)</h3></div>
+    <div class="card-body"><table><thead><tr><th>Contrato</th><th>Cliente</th><th>Itens a entregar</th><th>Data</th><th>Ações</th></tr></thead><tbody id="ent-ajustes"></tbody></table></div>
+  </div>
+  <div class="card" style="margin-bottom:16px">
     <div class="card-header"><h3>Atrasadas</h3></div>
     <div class="card-body"><table><thead><tr><th>#</th><th>Cliente</th><th>Equipamentos</th><th>Início</th><th>Término</th><th>Dias</th><th>Ações</th></tr></thead><tbody id="ent-atrasadas"></tbody></table></div>
   </div>
@@ -600,6 +604,10 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
 <div class="page" id="page-retiradas">
   <div class="page-header"><h2>Retiradas</h2><p>Equipamentos a recolher (contratos encerrando ou marcados para retirada)</p></div>
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:13px;margin-bottom:22px" id="retiradas-stats"></div>
+  <div class="card" style="margin-bottom:16px">
+    <div class="card-header"><h3>Itens a retirar (ajustes de contrato)</h3></div>
+    <div class="card-body"><table><thead><tr><th>Contrato</th><th>Cliente</th><th>Itens a retirar</th><th>Data</th><th>Ações</th></tr></thead><tbody id="ret-ajustes"></tbody></table></div>
+  </div>
   <div class="card" style="margin-bottom:16px">
     <div class="card-header"><h3>Retiradas parciais</h3></div>
     <div class="card-body"><table><thead><tr><th>Contrato</th><th>Cliente</th><th>Itens a retirar</th><th>Ações</th></tr></thead><tbody id="ret-parciais"></tbody></table></div>
@@ -1135,6 +1143,9 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
   </div>
 </div>
 
+<!-- Menu de ações do contrato (☰) -->
+<div id="contrato-menu" style="display:none;position:fixed;z-index:300;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 30px rgba(15,23,42,.18);padding:6px;min-width:190px"></div>
+
 <script>
 // ========================
 // CONFIG SUPABASE
@@ -1147,7 +1158,7 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSess
 const FIELD_MAP={
   equipamentos:{toDb:o=>({id:o.id,nome:o.nome,cat:o.cat,qty:o.qty,em_uso:o.emUso||0,manutencao:o.manutencao||0,diario:o.diario,semanal:o.semanal,mensal:o.mensal,unidade:o.unidade,status:o.status,descricao:o.desc||'',grupo:o.grupo||null,tipo_controle:o.tipoControle||'quantidade',componentes:o.componentes||[],foto:o.foto||null,fotos:o.fotos||[]}),fromDb:r=>({id:r.id,nome:r.nome,cat:r.cat,qty:r.qty,emUso:r.em_uso,manutencao:r.manutencao,diario:Number(r.diario),semanal:Number(r.semanal),mensal:Number(r.mensal),unidade:r.unidade,status:r.status,desc:r.descricao||'',grupo:r.grupo||'',tipoControle:r.tipo_controle||'quantidade',componentes:r.componentes||[],foto:r.foto||'',fotos:r.fotos||[]})},
   clientes:{toDb:o=>({id:o.id,nome:o.nome,tipo:o.tipo,doc:o.doc,rg:o.rg,tel:o.tel,email:o.email,endereco:o.end,obs:o.obs}),fromDb:r=>({id:r.id,nome:r.nome,tipo:r.tipo,doc:r.doc,rg:r.rg,tel:r.tel,email:r.email,end:r.endereco,obs:r.obs})},
-  contratos:{toDb:o=>({id:o.id,cliente_id:o.clienteId,inicio:o.inicio,fim:o.fim||null,pagamento:o.pagamento,status:o.status,local:o.local,itens:o.itens||[],total:o.total||0,desconto:o.desconto||0,frete:o.frete||0,pago:!!o.pago,pagamentos:o.pagamentos||[],obs:o.obs,para_retirada:!!o.paraRetirada,renovado_de:o.renovadoDe||null,filial_id:o.filialId||null,sem_estoque:!!o.semEstoque,avulso:!!o.avulso,paga_em:o.pagaEm||'mesmo'}),fromDb:r=>({id:r.id,clienteId:r.cliente_id,inicio:r.inicio,fim:r.fim,pagamento:r.pagamento,status:r.status,local:r.local,itens:r.itens||[],total:Number(r.total),desconto:Number(r.desconto||0),frete:Number(r.frete||0),pago:r.pago,pagamentos:r.pagamentos||[],obs:r.obs,criadoEm:r.created_at,paraRetirada:!!r.para_retirada,renovadoDe:r.renovado_de,filialId:r.filial_id,semEstoque:!!r.sem_estoque,avulso:!!r.avulso,pagaEm:r.paga_em||'mesmo'})},
+  contratos:{toDb:o=>({id:o.id,cliente_id:o.clienteId,inicio:o.inicio,fim:o.fim||null,pagamento:o.pagamento,status:o.status,local:o.local,itens:o.itens||[],total:o.total||0,desconto:o.desconto||0,frete:o.frete||0,pago:!!o.pago,pagamentos:o.pagamentos||[],obs:o.obs,para_retirada:!!o.paraRetirada,renovado_de:o.renovadoDe||null,filial_id:o.filialId||null,sem_estoque:!!o.semEstoque,avulso:!!o.avulso,paga_em:o.pagaEm||'mesmo',movimentacoes:o.movimentacoes||[]}),fromDb:r=>({id:r.id,clienteId:r.cliente_id,inicio:r.inicio,fim:r.fim,pagamento:r.pagamento,status:r.status,local:r.local,itens:r.itens||[],total:Number(r.total),desconto:Number(r.desconto||0),frete:Number(r.frete||0),pago:r.pago,pagamentos:r.pagamentos||[],obs:r.obs,criadoEm:r.created_at,paraRetirada:!!r.para_retirada,renovadoDe:r.renovado_de,filialId:r.filial_id,semEstoque:!!r.sem_estoque,avulso:!!r.avulso,pagaEm:r.paga_em||'mesmo',movimentacoes:r.movimentacoes||[]})},
   manutencoes:{toDb:o=>({id:o.id,equip_id:o.equipId,data:o.data,tipo:o.tipo,valor:o.valor||0,responsavel:o.resp,descricao:o.desc,revisao_concluida:!!o.revisaoConcluida,itens_feitos:o.itensFeitos||[]}),fromDb:r=>({id:r.id,equipId:r.equip_id,data:r.data,tipo:r.tipo,valor:Number(r.valor),resp:r.responsavel,desc:r.descricao,revisaoConcluida:r.revisao_concluida,itensFeitos:r.itens_feitos||[]})},
   filiais:{toDb:o=>({id:o.id,nome:o.nome,cnpj:o.cnpj||null,endereco:o.endereco||null,telefone:o.telefone||null,email:o.email||null}),fromDb:r=>({id:r.id,nome:r.nome,cnpj:r.cnpj||'',endereco:r.endereco||'',telefone:r.telefone||'',email:r.email||''})},
 };
@@ -1787,6 +1798,24 @@ function editarContrato(id){
   const tt=document.getElementById('contrato-modal-title');if(tt)tt.textContent='Editar Contrato #'+c.id;
   const bb=document.getElementById('btn-salvar-contrato');if(bb)bb.textContent='Salvar Alterações';
 }
+// Compara itens antigos x novos e gera movimentações: item adicionado => entrega, reduzido/removido => retirada
+function gerarMovimentacoes(oldI,newI){
+  const soma=arr=>{const m={};(arr||[]).forEach(it=>{if(it.equipId)m[it.equipId]=(m[it.equipId]||0)+(Number(it.qty)||0);});return m;};
+  const o=soma(oldI),n=soma(newI);
+  const ids=new Set([...Object.keys(o),...Object.keys(n)]);
+  const hj=hoje();const out=[];let seq=0;
+  ids.forEach(eid=>{
+    const d=(n[eid]||0)-(o[eid]||0);
+    if(d>0)out.push({id:Date.now()+(seq++),equipId:parseInt(eid),qty:d,tipo:'entrega',data:hj,feito:false});
+    else if(d<0)out.push({id:Date.now()+(seq++),equipId:parseInt(eid),qty:-d,tipo:'retirada',data:hj,feito:false});
+  });
+  return out;
+}
+// Marca uma movimentação (entrega/retirada de ajuste) como concluída — some da aba
+function marcarMovFeito(cid,mid){
+  DB.set('contratos',DB.get('contratos').map(c=>c.id==cid?{...c,movimentacoes:(c.movimentacoes||[]).map(m=>m.id===mid?{...m,feito:true}:m)}:c));
+  rerenderPaginaAtiva();
+}
 function salvarContrato(){
   const cId=parseInt(document.getElementById('contrato-cliente').value);
   if(!cId){alert('Selecione um cliente.');return;}
@@ -1809,8 +1838,11 @@ function salvarContrato(){
   const filialId=parseInt(document.getElementById('contrato-filial').value)||null;
   const campos={clienteId:cId,filialId,inicio:document.getElementById('contrato-inicio').value,fim:document.getElementById('contrato-fim').value,pagamento:document.getElementById('contrato-pagamento').value,status:document.getElementById('contrato-status').value,local:document.getElementById('contrato-local').value,itens:JSON.parse(JSON.stringify(contratoItens)),total,desconto,frete,semEstoque,avulso:document.getElementById('contrato-avulso').checked,pagaEm:document.getElementById('contrato-paga-em').value,obs:document.getElementById('contrato-obs').value};
   if(_contratoEditId){
-    // Edição: atualiza o contrato preservando pagamentos, pago, retirada, criadoEm e renovadoDe
-    DB.set('contratos',DB.get('contratos').map(x=>x.id==_contratoEditId?{...x,...campos}:x));
+    // Edição: atualiza o contrato preservando pagamentos, pago, retirada, criadoEm e renovadoDe.
+    // Gera movimentações do delta: itens adicionados => Entregas, reduzidos/removidos => Retiradas.
+    const antigo=DB.get('contratos').find(x=>x.id==_contratoEditId)||{itens:[]};
+    const novasMov=[...(antigo.movimentacoes||[]),...gerarMovimentacoes(antigo.itens,campos.itens)];
+    DB.set('contratos',DB.get('contratos').map(x=>x.id==_contratoEditId?{...x,...campos,movimentacoes:novasMov}:x));
   }else{
     const obj={id:DB.nextId('contratos'),...campos,pago:false,pagamentos:[],paraRetirada:false,criadoEm:new Date().toISOString(),renovadoDe:null};
     let ct=DB.get('contratos');ct.push(obj);DB.set('contratos',ct);
@@ -1820,6 +1852,28 @@ function salvarContrato(){
   closeModal('modal-contrato');contratoItens=[];document.getElementById('contrato-desconto').value='';document.getElementById('contrato-frete').value='';renderContratos();updateBadges();
 }
 
+// Menu de ações (☰) de cada contrato — dropdown flutuante
+function abrirMenuContrato(ev,id){
+  ev.stopPropagation();
+  const m=document.getElementById('contrato-menu');
+  const opt=(label,fn,danger)=>`<button class="btn btn-ghost btn-sm" style="width:100%;justify-content:flex-start;${danger?'color:var(--danger)':''}" onclick="fecharMenuContrato();${fn}">${label}</button>`;
+  m.innerHTML=[
+    opt('📄 Contrato',`verContrato(${id})`),
+    opt('🧾 Fatura',`verFatura(${id})`),
+    opt('✏️ Editar',`editarContrato(${id})`),
+    opt('🔄 Renovar',`abrirRenovar(${id})`),
+    opt('🗑️ Excluir',`delContratoConfirm(${id})`,true)
+  ].join('');
+  m.style.display='block';
+  const r=ev.currentTarget.getBoundingClientRect();
+  const mw=m.offsetWidth||190,mh=m.offsetHeight||10;
+  let left=r.right-mw;if(left<8)left=8;
+  let top=r.bottom+4;if(top+mh>window.innerHeight-8)top=Math.max(8,r.top-mh-4);
+  m.style.left=left+'px';m.style.top=top+'px';
+}
+function fecharMenuContrato(){const m=document.getElementById('contrato-menu');if(m)m.style.display='none';}
+document.addEventListener('click',e=>{if(!e.target.closest('#contrato-menu')&&!e.target.closest('.menu-contrato-btn'))fecharMenuContrato();});
+window.addEventListener('scroll',fecharMenuContrato,true);
 function renderContratos(q=''){
   let ct=DB.get('contratos').slice().reverse();
   const cls=DB.get('clientes'),eq=DB.get('equipamentos');
@@ -1863,14 +1917,7 @@ function renderContratos(q=''){
         <option value="finalizado"${c.status==='finalizado'?' selected':''}>Finalizado</option>
         <option value="cancelado"${c.status==='cancelado'?' selected':''}>Cancelado</option>
       </select></td>
-      <td style="white-space:nowrap">
-        <button class="btn btn-ghost btn-sm" onclick="verContrato(${c.id})">Contrato</button>
-        <button class="btn btn-info btn-sm" onclick="verFatura(${c.id})">Fatura</button>
-        <button class="btn btn-ghost btn-sm" onclick="editarContrato(${c.id})">Editar</button>
-        <button class="btn btn-warning btn-sm" onclick="abrirRenovar(${c.id})">Renovar</button>
-        ${c.status==='ativo'?`<button class="btn btn-info btn-sm" onclick="abrirRetiradaParcial(${c.id})">Retirada parcial</button>`:''}
-        <button class="btn btn-danger btn-sm" onclick="delContratoConfirm(${c.id})">Excluir</button>
-      </td>
+      <td style="text-align:center;white-space:nowrap"><button class="btn btn-ghost btn-sm menu-contrato-btn" onclick="abrirMenuContrato(event,${c.id})" title="Ações" style="font-size:16px;line-height:1;padding:5px 11px">☰</button></td>
     </tr>`;
   }).join('');
   updateBadges();
@@ -2118,6 +2165,13 @@ function renderEntregas(){
   document.getElementById('ent-atrasadas').innerHTML=renderRows(atrasadas);
   document.getElementById('ent-hoje').innerHTML=renderRows(hoje_);
   document.getElementById('ent-proximas').innerHTML=renderRows(proximas);
+  // Ajustes de contrato: itens ADICIONADOS numa edição, aguardando entrega
+  const movsEnt=[];
+  DB.get('contratos').forEach(c=>(c.movimentacoes||[]).forEach(m=>{if(m.tipo==='entrega'&&!m.feito)movsEnt.push({c,m});}));
+  document.getElementById('ent-ajustes').innerHTML=movsEnt.length?movsEnt.map(({c,m})=>{
+    const cl=cls.find(x=>x.id===c.clienteId)||{nome:'—'};const e=eq.find(x=>x.id==m.equipId)||{nome:'—'};
+    return`<tr><td><b>#${c.id}</b></td><td>${cl.nome}</td><td><span class="badge badge-green">+${m.qty}x ${e.nome}</span></td><td>${fmtData(m.data)}</td><td><button class="btn btn-success btn-sm" onclick="marcarMovFeito(${c.id},${m.id})">Marcar entregue</button></td></tr>`;
+  }).join(''):'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:16px">Nenhum item de ajuste a entregar</td></tr>';
   updateBadges();
   setTimeout(applyTableLabels,30);
 }
@@ -2162,6 +2216,13 @@ function renderRetiradas(){
   document.getElementById('ret-atrasadas').innerHTML=renderRows(atrasadas);
   document.getElementById('ret-hoje').innerHTML=renderRows(hoje_);
   document.getElementById('ret-proximas').innerHTML=renderRows(proximas);
+  // Ajustes de contrato: itens REMOVIDOS/reduzidos numa edição, aguardando retirada
+  const movsRet=[];
+  DB.get('contratos').forEach(c=>(c.movimentacoes||[]).forEach(m=>{if(m.tipo==='retirada'&&!m.feito)movsRet.push({c,m});}));
+  document.getElementById('ret-ajustes').innerHTML=movsRet.length?movsRet.map(({c,m})=>{
+    const cl=cls.find(x=>x.id===c.clienteId)||{nome:'—'};const e=eq.find(x=>x.id==m.equipId)||{nome:'—'};
+    return`<tr><td><b>#${c.id}</b></td><td>${cl.nome}</td><td><span class="badge badge-red">−${m.qty}x ${e.nome}</span></td><td>${fmtData(m.data)}</td><td><button class="btn btn-primary btn-sm" onclick="marcarMovFeito(${c.id},${m.id})">Marcar retirado</button></td></tr>`;
+  }).join(''):'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:16px">Nenhum item de ajuste a retirar</td></tr>';
   // Retiradas parciais agendadas (itens com retirarQty>0)
   const parciais=DB.get('contratos').filter(temRetiradaParcial);
   document.getElementById('ret-parciais').innerHTML=!parciais.length
@@ -3157,11 +3218,13 @@ function renderDashboard(){
   if(vencidos.length)alertas+=`<div class="alert alert-danger">🔴 <b>${vencidos.length} cobrança(s) vencida(s)</b> (aguardando pagamento) — <a href="#" onclick="navTo('validade',null);return false" style="color:inherit">Ver</a></div>`;
   if(prest7.length)alertas+=`<div class="alert alert-warning">🟡 <b>${prest7.length} cobrança(s)</b> vencem em até 7 dias — <a href="#" onclick="navTo('validade',null);return false" style="color:inherit">Ver</a></div>`;
   // Entregas a fazer (agendados com início hoje ou atrasado)
-  const entregasDev=ct.filter(c=>c.status==='pendente'&&c.inicio&&diasAte(c.inicio)<=0);
-  if(entregasDev.length)alertas+=`<div class="alert alert-info">📦 <b>${entregasDev.length} entrega(s)</b> para fazer (hoje ou atrasada) — <a href="#" onclick="navTo('entregas',null);return false" style="color:inherit">Ver</a></div>`;
-  // Retiradas a fazer (apenas marcadas para retirada + parciais agendadas)
-  const retiradasDev=ct.filter(c=>(c.status==='ativo'&&c.paraRetirada)||temRetiradaParcial(c));
-  if(retiradasDev.length)alertas+=`<div class="alert alert-warning">📥 <b>${retiradasDev.length} retirada(s)</b> para fazer — <a href="#" onclick="navTo('retiradas',null);return false" style="color:inherit">Ver</a></div>`;
+  const movEntC=ct.reduce((s,c)=>s+(c.movimentacoes||[]).filter(m=>m.tipo==='entrega'&&!m.feito).length,0);
+  const movRetC=ct.reduce((s,c)=>s+(c.movimentacoes||[]).filter(m=>m.tipo==='retirada'&&!m.feito).length,0);
+  const entregasDev=ct.filter(c=>c.status==='pendente'&&c.inicio&&diasAte(c.inicio)<=0).length+movEntC;
+  if(entregasDev)alertas+=`<div class="alert alert-info">📦 <b>${entregasDev} entrega(s)</b> para fazer — <a href="#" onclick="navTo('entregas',null);return false" style="color:inherit">Ver</a></div>`;
+  // Retiradas a fazer (marcadas para retirada + parciais + ajustes de edição)
+  const retiradasDev=ct.filter(c=>(c.status==='ativo'&&c.paraRetirada)||temRetiradaParcial(c)).length+movRetC;
+  if(retiradasDev)alertas+=`<div class="alert alert-warning">📥 <b>${retiradasDev} retirada(s)</b> para fazer — <a href="#" onclick="navTo('retiradas',null);return false" style="color:inherit">Ver</a></div>`;
   // Revisões
   const equipRevisao={};
   manuts.filter(m=>m.revisaoConcluida).forEach(m=>{if(!equipRevisao[m.equipId]||m.data>equipRevisao[m.equipId].data)equipRevisao[m.equipId]=m;});
@@ -3189,9 +3252,11 @@ function updateBadges(){
   const manutVenc=eq.filter(e=>{const u=equipRevisao[e.id];return u&&diasAte(addDias(u.data,180))<=30;}).length;
   const bm=document.getElementById('badge-manut');bm.textContent=manutVenc;bm.style.display=manutVenc?'':'none';
   // Entregas pendentes atrasadas/hoje e retiradas devidas
-  const entr=ct.filter(c=>c.status==='pendente'&&diasAte(c.inicio)<=0).length;
+  const movEnt=ct.reduce((s,c)=>s+(c.movimentacoes||[]).filter(m=>m.tipo==='entrega'&&!m.feito).length,0);
+  const movRet=ct.reduce((s,c)=>s+(c.movimentacoes||[]).filter(m=>m.tipo==='retirada'&&!m.feito).length,0);
+  const entr=ct.filter(c=>c.status==='pendente'&&diasAte(c.inicio)<=0).length+movEnt;
   const be=document.getElementById('badge-entregas');be.textContent=entr;be.style.display=entr?'':'none';
-  const retr=ct.filter(c=>(c.status==='ativo'&&c.paraRetirada)||temRetiradaParcial(c)).length;
+  const retr=ct.filter(c=>(c.status==='ativo'&&c.paraRetirada)||temRetiradaParcial(c)).length+movRet;
   const br=document.getElementById('badge-retiradas');br.textContent=retr;br.style.display=retr?'':'none';
 }
 
