@@ -1894,14 +1894,15 @@ function renderContratos(q=''){
       const at=cicloAtual(c,hojeC);
       fimCel=`${at?fmtD(at.fim):'—'} <span class="badge badge-green" style="margin-left:4px">renova</span>`;
     }else{
-      // Avulso / não-ativo: mantém a data fixa e o aviso de vencido
-      const dias=c.fim?diasAte(c.fim):null;
+      // Avulso / não-ativo: usa o término real (fim informado, ou calculado pela duração no avulso)
+      const fimD=c.fim?new Date(c.fim+'T12:00:00'):(c.avulso?fimContratoReal(c):null);
+      const dias=fimD?diasAteData(fimD,hojeC):null;
       let fimBadge='';
-      if(c.fim&&c.status==='ativo'){
+      if(fimD&&c.status==='ativo'){
         if(dias<=0){fimBadge='<span class="badge badge-red" style="margin-left:4px">Vencido</span>';vencAttr=' data-vencimento="vencido"';}
         else if(dias<=7){fimBadge=`<span class="badge badge-warning" style="margin-left:4px">${dias}d</span>`;vencAttr=' data-vencimento="proximo"';}
       }
-      fimCel=`${c.fim?fmtData(c.fim):'—'}${fimBadge}`;
+      fimCel=`${fimD?fmtD(fimD):'—'}${fimBadge}`;
     }
     const renovBt=c.renovadoDe?`<span class="badge badge-blue" style="margin-right:4px">Renovação</span>`:'';
     return`<tr data-status="${c.status}"${vencAttr}>
@@ -3053,6 +3054,31 @@ function cicloPeriodo(inicio,i){
   const f=x=>`${String(x.getDate()).padStart(2,'0')}/${String(x.getMonth()+1).padStart(2,'0')}/${x.getFullYear()}`;
   return {ini,fim,label:`${f(ini)} → ${f(fim)}`};
 }
+// Data de término REAL de um contrato: usa o 'fim' se informado; senão calcula pela duração dos itens
+// (diário=qtd dias, semanal=qtd×7, mensal=qtd meses) — pega o item que termina mais tarde.
+function fimContratoReal(c){
+  const ini=new Date(c.inicio+'T12:00:00');
+  if(c.fim)return new Date(c.fim+'T12:00:00');
+  let maxEnd=new Date(ini);
+  (c.itens||[]).forEach(it=>{
+    const q=Number(it.qtdPeriodo)||1,e=new Date(ini);
+    if(it.periodo==='diario')e.setDate(e.getDate()+q);
+    else if(it.periodo==='semanal')e.setDate(e.getDate()+q*7);
+    else e.setMonth(e.getMonth()+q);
+    if(e>maxEnd)maxEnd=e;
+  });
+  if(maxEnd>ini)maxEnd.setDate(maxEnd.getDate()-1);
+  return maxEnd;
+}
+// Período de um ciclo, INTELIGENTE: avulso usa a duração real (1 semana, 1 dia...); recorrente é mensal.
+function periodoCiclo(c,i){
+  if(c.avulso){
+    const ini=new Date(c.inicio+'T12:00:00'),fim=fimContratoReal(c);
+    const f=x=>`${String(x.getDate()).padStart(2,'0')}/${String(x.getMonth()+1).padStart(2,'0')}/${x.getFullYear()}`;
+    return {ini,fim,label:`${f(ini)} → ${f(fim)}`};
+  }
+  return cicloPeriodo(c.inicio,i);
+}
 // Ciclos de um contrato que caem no mês de EXIBIÇÃO D (YYYY-MM). Aplica o deslocamento por "quando paga".
 // Contratos finalizados/cancelados/para-retirada não projetam além do mês atual (retirada tira os renovados).
 function ciclosNoMes(c,D,hojeYM){
@@ -3065,7 +3091,7 @@ function ciclosNoMes(c,D,hojeYM){
   for(let i=0;i<N;i++){
     const refYM=addMesYM(startYM,i);
     if(corta&&refYM>hojeYM)break;
-    if(addMesYM(refYM,off)===D){const p=cicloPeriodo(c.inicio,i);res.push({c,i,refYM,periodo:p.label,fim:p.fim});}
+    if(addMesYM(refYM,off)===D){const p=periodoCiclo(c,i);res.push({c,i,refYM,periodo:p.label,fim:p.fim});}
   }
   return res;
 }
@@ -3103,7 +3129,7 @@ function cicloVencimento(c,hoje){
   for(let i=0;i<N;i++){
     const refYM=addMesYM(startYM,i);
     if(pgQuitadoMes(c,refYM))continue;
-    const fim=cicloPeriodo(c.inicio,i).fim;
+    const fim=periodoCiclo(c,i).fim;
     const dias=diasAteData(fim,hoje);
     return dias<=30?{i,refYM,fim,dias}:null;
   }
@@ -3116,7 +3142,7 @@ function cicloAtual(c,hoje){
   let i=0;
   if(hoje>=start){i=(hoje.getFullYear()-start.getFullYear())*12+(hoje.getMonth()-start.getMonth());if(hoje.getDate()<start.getDate())i--;if(i<0)i=0;}
   const N=c.avulso?1:PROJ_MESES;if(i>=N)i=N-1;
-  const p=cicloPeriodo(c.inicio,i);return {i,ini:p.ini,fim:p.fim};
+  const p=periodoCiclo(c,i);return {i,ini:p.ini,fim:p.fim};
 }
 
 let _pagContratoId=null;
