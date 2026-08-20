@@ -581,9 +581,13 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
     <div class="card-header"><h3>Vence em até 7 dias</h3></div>
     <div class="card-body"><table><thead><tr><th>#</th><th>Cliente</th><th>Equipamentos</th><th>Início</th><th>Término</th><th>Dias restantes</th><th>Ações</th></tr></thead><tbody id="venc-7dias"></tbody></table></div>
   </div>
-  <div class="card">
+  <div class="card" style="margin-bottom:16px">
     <div class="card-header"><h3>Vence em até 30 dias</h3></div>
     <div class="card-body"><table><thead><tr><th>#</th><th>Cliente</th><th>Equipamentos</th><th>Início</th><th>Término</th><th>Dias restantes</th><th>Ações</th></tr></thead><tbody id="venc-30dias"></tbody></table></div>
+  </div>
+  <div class="card">
+    <div class="card-header"><h3>⚠ Finalizados com saldo em aberto</h3></div>
+    <div class="card-body"><table><thead><tr><th>#</th><th>Cliente</th><th>Finalizado em</th><th>Saldo devido</th><th>Ações</th></tr></thead><tbody id="venc-finalizados"></tbody></table></div>
   </div>
 </div>
 
@@ -1168,7 +1172,7 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSess
 const FIELD_MAP={
   equipamentos:{toDb:o=>({id:o.id,nome:o.nome,cat:o.cat,qty:o.qty,em_uso:o.emUso||0,manutencao:o.manutencao||0,diario:o.diario,semanal:o.semanal,quinzenal:o.quinzenal||0,mensal:o.mensal,unidade:o.unidade,status:o.status,descricao:o.desc||'',grupo:o.grupo||null,tipo_controle:o.tipoControle||'quantidade',componentes:o.componentes||[],foto:o.foto||null,fotos:o.fotos||[]}),fromDb:r=>({id:r.id,nome:r.nome,cat:r.cat,qty:r.qty,emUso:r.em_uso,manutencao:r.manutencao,diario:Number(r.diario),semanal:Number(r.semanal),quinzenal:Number(r.quinzenal||0),mensal:Number(r.mensal),unidade:r.unidade,status:r.status,desc:r.descricao||'',grupo:r.grupo||'',tipoControle:r.tipo_controle||'quantidade',componentes:r.componentes||[],foto:r.foto||'',fotos:r.fotos||[]})},
   clientes:{toDb:o=>({id:o.id,nome:o.nome,tipo:o.tipo,doc:o.doc,rg:o.rg,tel:o.tel,email:o.email,endereco:o.end,obs:o.obs}),fromDb:r=>({id:r.id,nome:r.nome,tipo:r.tipo,doc:r.doc,rg:r.rg,tel:r.tel,email:r.email,end:r.endereco,obs:r.obs})},
-  contratos:{toDb:o=>({id:o.id,cliente_id:o.clienteId,inicio:o.inicio,fim:o.fim||null,pagamento:o.pagamento,status:o.status,local:o.local,itens:o.itens||[],total:o.total||0,desconto:o.desconto||0,frete:o.frete||0,pago:!!o.pago,pagamentos:o.pagamentos||[],obs:o.obs,para_retirada:!!o.paraRetirada,renovado_de:o.renovadoDe||null,filial_id:o.filialId||null,sem_estoque:!!o.semEstoque,avulso:!!o.avulso,paga_em:o.pagaEm||'mesmo',movimentacoes:o.movimentacoes||[]}),fromDb:r=>({id:r.id,clienteId:r.cliente_id,inicio:r.inicio,fim:r.fim,pagamento:r.pagamento,status:r.status,local:r.local,itens:r.itens||[],total:Number(r.total),desconto:Number(r.desconto||0),frete:Number(r.frete||0),pago:r.pago,pagamentos:r.pagamentos||[],obs:r.obs,criadoEm:r.created_at,paraRetirada:!!r.para_retirada,renovadoDe:r.renovado_de,filialId:r.filial_id,semEstoque:!!r.sem_estoque,avulso:!!r.avulso,pagaEm:r.paga_em||'mesmo',movimentacoes:r.movimentacoes||[]})},
+  contratos:{toDb:o=>({id:o.id,cliente_id:o.clienteId,inicio:o.inicio,fim:o.fim||null,pagamento:o.pagamento,status:o.status,local:o.local,itens:o.itens||[],total:o.total||0,desconto:o.desconto||0,frete:o.frete||0,pago:!!o.pago,pagamentos:o.pagamentos||[],obs:o.obs,para_retirada:!!o.paraRetirada,renovado_de:o.renovadoDe||null,filial_id:o.filialId||null,sem_estoque:!!o.semEstoque,avulso:!!o.avulso,paga_em:o.pagaEm||'mesmo',movimentacoes:o.movimentacoes||[],finalizado_em:o.finalizadoEm||null,vencidos_manuais:o.vencidosManuais||[]}),fromDb:r=>({id:r.id,clienteId:r.cliente_id,inicio:r.inicio,fim:r.fim,pagamento:r.pagamento,status:r.status,local:r.local,itens:r.itens||[],total:Number(r.total),desconto:Number(r.desconto||0),frete:Number(r.frete||0),pago:r.pago,pagamentos:r.pagamentos||[],obs:r.obs,criadoEm:r.created_at,paraRetirada:!!r.para_retirada,renovadoDe:r.renovado_de,filialId:r.filial_id,semEstoque:!!r.sem_estoque,avulso:!!r.avulso,pagaEm:r.paga_em||'mesmo',movimentacoes:r.movimentacoes||[],finalizadoEm:r.finalizado_em||null,vencidosManuais:r.vencidos_manuais||[]})},
   manutencoes:{toDb:o=>({id:o.id,equip_id:o.equipId,data:o.data,tipo:o.tipo,valor:o.valor||0,responsavel:o.resp,descricao:o.desc,revisao_concluida:!!o.revisaoConcluida,itens_feitos:o.itensFeitos||[]}),fromDb:r=>({id:r.id,equipId:r.equip_id,data:r.data,tipo:r.tipo,valor:Number(r.valor),resp:r.responsavel,desc:r.descricao,revisaoConcluida:r.revisao_concluida,itensFeitos:r.itens_feitos||[]})},
   filiais:{toDb:o=>({id:o.id,nome:o.nome,cnpj:o.cnpj||null,endereco:o.endereco||null,telefone:o.telefone||null,email:o.email||null}),fromDb:r=>({id:r.id,nome:r.nome,cnpj:r.cnpj||'',endereco:r.endereco||'',telefone:r.telefone||'',email:r.email||''})},
 };
@@ -1953,7 +1957,8 @@ function alterarStatus(id,novo){
   const ct=DB.get('contratos');
   const c=ct.find(x=>x.id==id);if(!c)return;
   if(c.status===novo)return;
-  DB.set('contratos',ct.map(x=>x.id==id?{...x,status:novo}:x));
+  const extra=novo==='finalizado'?{finalizadoEm:new Date().toISOString().slice(0,10)}:{};
+  DB.set('contratos',ct.map(x=>x.id==id?{...x,status:novo,...extra}:x));
   recalcularEmUso();
   renderContratos();updateBadges();
   if(document.getElementById('page-financeiro')?.classList.contains('active'))renderFinanceiro();
@@ -1980,8 +1985,13 @@ function marcarEntregue(id){
 }
 // Retirada/devolução feita: contrato vira finalizado e libera o estoque
 function marcarRetirado(id){
-  if(!confirm('Confirmar a retirada/devolução deste contrato? O estoque será liberado.'))return;
-  DB.set('contratos',DB.get('contratos').map(c=>c.id==id?{...c,status:'finalizado',paraRetirada:false}:c));
+  const c=DB.get('contratos').find(x=>x.id==id);
+  const hoje=new Date();hoje.setHours(0,0,0,0);
+  const dev=c?saldoDevido(c,hoje):0;
+  let msg='Confirmar a retirada/devolução deste contrato? O estoque será liberado.';
+  if(dev>0)msg='⚠ ATENÇÃO: este contrato tem R$ '+fmtMoney(dev)+' EM ABERTO (meses já vencidos).\n\n'+msg+'\n\nFinalizar mesmo assim? (o saldo continuará na lista "Finalizados com saldo em aberto")';
+  if(!confirm(msg))return;
+  DB.set('contratos',DB.get('contratos').map(x=>x.id==id?{...x,status:'finalizado',paraRetirada:false,finalizadoEm:hoje.toISOString().slice(0,10)}:x));
   recalcularEmUso();rerenderPaginaAtiva();
 }
 // Marca "retirada certa": entra na lista de Retiradas e, no planejamento futuro, libera o estoque no fim
@@ -2143,6 +2153,12 @@ function renderValidade(){
   document.getElementById('venc-vencidos').innerHTML=renderRows(vencidos,false);
   document.getElementById('venc-7dias').innerHTML=renderRows(em7,true);
   document.getElementById('venc-30dias').innerHTML=renderRows(em30,true);
+  // Finalizados que ainda têm saldo em aberto (dos meses já vencidos) — pra não perder a cobrança
+  const finSaldo=DB.get('contratos').map(c=>({c,dev:c.status==='finalizado'?saldoDevido(c,hoje):0})).filter(x=>x.dev>0);
+  document.getElementById('venc-finalizados').innerHTML=finSaldo.length?finSaldo.map(({c,dev})=>{
+    const cl=cls.find(x=>x.id===c.clienteId)||{nome:'—'};
+    return`<tr data-vencimento="vencido"><td><b>#${c.id}</b></td><td>${cl.nome}<br><span style="font-size:11px;color:var(--muted)">${cl.tel||''}</span></td><td>${c.finalizadoEm?fmtData(c.finalizadoEm):'—'}</td><td><b style="color:var(--danger)">R$ ${fmtMoney(dev)}</b></td><td style="white-space:nowrap"><button class="btn btn-ghost btn-sm" onclick="verContrato(${c.id})">Contrato</button> <button class="btn btn-primary btn-sm" onclick="abrirPagamentos(${c.id},'${primeiroMesDevido(c,hoje)}')">Pagamentos</button></td></tr>`;
+  }).join(''):'<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:16px">Nenhum finalizado com saldo em aberto</td></tr>';
   updateBadges();
 }
 
@@ -3039,7 +3055,11 @@ function renderFinanceiro(){
     else if(receb>0)pagCel=`<span class="badge badge-blue">Parcial</span><div style="font-size:11px;color:var(--muted);margin-top:3px">R$ ${fmtMoney(receb)} / ${fmtMoney(c.total)} · falta R$ ${fmtMoney(saldo)}</div>`;
     else pagCel='<span class="badge badge-orange">Pendente</span>';
     const eqs=(c.itens||[]).map(it=>{const e=eq.find(y=>y.id==it.equipId);return e?`${e.nome} (${it.qty})`:'—';}).join(', ')||'—';
-    return`<tr data-status="${c.status}"${vencAttr}><td>#${c.id}</td><td>${cl.nome}</td><td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${eqs}">${eqs}</td><td style="white-space:nowrap">${x.periodo}</td><td><b>R$ ${fmtMoney(c.total)}</b></td><td>${fmtDataD(x.fim)}</td><td>${pagCel}</td><td style="white-space:nowrap"><button class="btn btn-primary btn-sm" onclick="abrirPagamentos(${c.id},'${x.refYM}')">Pagamentos</button>${(c.status==='ativo'&&!c.paraRetirada)?` <button class="btn btn-info btn-sm" onclick="enviarParaRetirada(${c.id})">P/ retirada</button>`:''}</td></tr>`;
+    const refBadge=x.refYM!==mesAtual?`<span class="badge badge-orange" style="margin-left:5px" title="Cobrança referente a ${nomeMesYM(x.refYM)}">ref. ${nomeMesCurtoYM(x.refYM)}</span>`:'';
+    const forcadoVenc=!quit&&(c.vencidosManuais||[]).includes(x.refYM);
+    const vencBadge=forcadoVenc?'<span class="badge badge-red" style="margin-left:5px" title="Marcado manualmente como vencido">vencido</span>':'';
+    if(forcadoVenc)vencAttr=' data-vencimento="vencido"';
+    return`<tr data-status="${c.status}"${vencAttr}><td>#${c.id}${refBadge}${vencBadge}</td><td>${cl.nome}</td><td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${eqs}">${eqs}</td><td style="white-space:nowrap">${x.periodo}</td><td><b>R$ ${fmtMoney(c.total)}</b></td><td>${fmtDataD(x.fim)}</td><td>${pagCel}</td><td style="white-space:nowrap"><button class="btn btn-primary btn-sm" onclick="abrirPagamentos(${c.id},'${x.refYM}')">Pagamentos</button>${(c.status==='ativo'&&!c.paraRetirada)?` <button class="btn btn-info btn-sm" onclick="enviarParaRetirada(${c.id})">P/ retirada</button>`:''}</td></tr>`;
   };
   // Agrupa por dia do início (dia do ciclo), em ordem
   const grupos={};
@@ -3145,15 +3165,41 @@ function diasAteData(d,hoje){return Math.round((d-hoje)/86400000);}
 // já chegou ou está a até 30 dias. Ao pagar o mês, ele some; volta no próximo ciclo. Marcado p/ retirada não entra.
 function cicloVencimento(c,hoje){
   if(c.status!=='ativo'||c.paraRetirada||!c.inicio)return null;
-  const N=c.avulso?1:PROJ_MESES,startYM=inicioYM(c);
+  const N=c.avulso?1:PROJ_MESES,startYM=inicioYM(c),forcados=c.vencidosManuais||[];
   for(let i=0;i<N;i++){
     const refYM=addMesYM(startYM,i);
     if(pgQuitadoMes(c,refYM))continue;
     const fim=periodoCiclo(c,i).fim;
     const dias=diasAteData(fim,hoje);
-    return dias<=30?{i,refYM,fim,dias}:null;
+    if(forcados.includes(refYM))return {i,refYM,fim,dias:Math.min(dias,0),forcado:true}; // marcado à mão como vencido
+    if(dias<=30)return {i,refYM,fim,dias};
+    // futuro e não forçado: continua procurando um mês marcado à frente
   }
   return null;
+}
+// Saldo REALMENTE em aberto: soma só os ciclos JÁ VENCIDOS (período terminou), nunca os meses futuros
+// dos 60. Para finalizado, corta na data em que foi finalizado (não acumula dívida depois de encerrado).
+function saldoDevido(c,hoje){
+  if(!c||c.status==='cancelado'||!c.inicio)return 0;
+  const corte=(c.status==='finalizado'&&c.finalizadoEm)?new Date(c.finalizadoEm+'T12:00:00'):hoje;
+  const forcados=c.vencidosManuais||[],N=c.avulso?1:PROJ_MESES,startYM=inicioYM(c);
+  let s=0;
+  for(let i=0;i<N;i++){
+    const ref=addMesYM(startYM,i),fim=periodoCiclo(c,i).fim;
+    // conta o mês se já venceu (período terminou) OU se foi marcado à mão como vencido; futuros normais não contam
+    if(diasAteData(fim,corte)<=0||forcados.includes(ref))s+=pgSaldoMes(c,ref);
+  }
+  return s;
+}
+// Mês (YYYY-MM) do 1º ciclo devido (vencido natural ou marcado à mão) e não pago — pra abrir os Pagamentos certo
+function primeiroMesDevido(c,hoje){
+  const corte=(c.status==='finalizado'&&c.finalizadoEm)?new Date(c.finalizadoEm+'T12:00:00'):hoje;
+  const forcados=c.vencidosManuais||[],N=c.avulso?1:PROJ_MESES,startYM=inicioYM(c);
+  for(let i=0;i<N;i++){
+    const ref=addMesYM(startYM,i),fim=periodoCiclo(c,i).fim;
+    if((diasAteData(fim,corte)<=0||forcados.includes(ref))&&!pgQuitadoMes(c,ref))return ref;
+  }
+  return inicioYM(c);
 }
 // Ciclo (mês) em que o contrato está HOJE — usado pra mostrar o período atual na lista de contratos
 function cicloAtual(c,hoje){
@@ -3199,9 +3245,19 @@ function renderPagModal(){
       <div class="form-group"><label>DATA</label><input id="pag-data" type="date" value="${hoje}"></div>
       <button class="btn btn-primary" onclick="addPagamento()">Adicionar</button>
     </div>
-    <button class="btn btn-success" style="margin-top:12px;width:100%;justify-content:center" onclick="quitarMes()">Quitar este mês (R$ ${fmtMoney(saldo)})</button>`;
+    <button class="btn btn-success" style="margin-top:12px;width:100%;justify-content:center" onclick="quitarMes()">Quitar este mês (R$ ${fmtMoney(saldo)})</button>
+    <button class="btn btn-ghost" style="margin-top:8px;width:100%;justify-content:center" onclick="toggleVencidoManual()">${(c.vencidosManuais||[]).includes(ref)?'✓ Marcado como vencido — desmarcar':'Marcar este mês como vencido'}</button>`;
   }
   document.getElementById('pag-content').innerHTML=html;
+}
+// Força/desforça um mês como vencido (casos específicos) — reflete em Vencimentos, Financeiro e saldo devido
+function toggleVencidoManual(){
+  const c=DB.get('contratos').find(x=>x.id===_pagContratoId);if(!c)return;
+  const ref=_pagMesRef||inicioYM(c);
+  let lista=Array.isArray(c.vencidosManuais)?c.vencidosManuais.slice():[];
+  lista=lista.includes(ref)?lista.filter(x=>x!==ref):lista.concat([ref]);
+  DB.set('contratos',DB.get('contratos').map(x=>x.id===_pagContratoId?{...x,vencidosManuais:lista}:x));
+  renderPagModal();rerenderPaginaAtiva();
 }
 function _pagSalvar(lista){
   DB.set('contratos',DB.get('contratos').map(x=>x.id===_pagContratoId?{...x,pagamentos:lista}:x));
