@@ -3085,6 +3085,7 @@ function ymDe(s){return (s||'').slice(0,7);}
 function inicioYM(c){return ymDe(c.inicio);}
 function addMesYM(ym,n){const [y,m]=ym.split('-').map(Number);const d=new Date(y,m-1+n,1);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;}
 function nomeMesYM(ym){const [y,m]=ym.split('-');return `${MESES_NOMES[parseInt(m)-1]}/${y}`;}
+function nomeMesCurtoYM(ym){const [y,m]=ym.split('-');return `${MESES_NOMES[parseInt(m)-1].slice(0,3).toLowerCase()}/${y.slice(2)}`;}
 // Período (ciclo aniversário) do ciclo i a partir da data de início
 function cicloPeriodo(inicio,i){
   const d=new Date(inicio+'T12:00:00');
