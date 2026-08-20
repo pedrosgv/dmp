@@ -3055,11 +3055,10 @@ function renderFinanceiro(){
     else if(receb>0)pagCel=`<span class="badge badge-blue">Parcial</span><div style="font-size:11px;color:var(--muted);margin-top:3px">R$ ${fmtMoney(receb)} / ${fmtMoney(c.total)} · falta R$ ${fmtMoney(saldo)}</div>`;
     else pagCel='<span class="badge badge-orange">Pendente</span>';
     const eqs=(c.itens||[]).map(it=>{const e=eq.find(y=>y.id==it.equipId);return e?`${e.nome} (${it.qty})`:'—';}).join(', ')||'—';
-    const refBadge=x.refYM!==mesAtual?`<span class="badge badge-orange" style="margin-left:5px" title="Cobrança referente a ${nomeMesYM(x.refYM)}">ref. ${nomeMesCurtoYM(x.refYM)}</span>`:'';
     const forcadoVenc=!quit&&(c.vencidosManuais||[]).includes(x.refYM);
     const vencBadge=forcadoVenc?'<span class="badge badge-red" style="margin-left:5px" title="Marcado manualmente como vencido">vencido</span>':'';
     if(forcadoVenc)vencAttr=' data-vencimento="vencido"';
-    return`<tr data-status="${c.status}"${vencAttr}><td>#${c.id}${refBadge}${vencBadge}</td><td>${cl.nome}</td><td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${eqs}">${eqs}</td><td style="white-space:nowrap">${x.periodo}</td><td><b>R$ ${fmtMoney(c.total)}</b></td><td>${fmtDataD(x.fim)}</td><td>${pagCel}</td><td style="white-space:nowrap"><button class="btn btn-primary btn-sm" onclick="abrirPagamentos(${c.id},'${x.refYM}')">Pagamentos</button>${(c.status==='ativo'&&!c.paraRetirada)?` <button class="btn btn-info btn-sm" onclick="enviarParaRetirada(${c.id})">P/ retirada</button>`:''}</td></tr>`;
+    return`<tr data-status="${c.status}"${vencAttr}><td>#${c.id}${vencBadge}</td><td>${cl.nome}</td><td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${eqs}">${eqs}</td><td style="white-space:nowrap">${x.periodo}</td><td><b>R$ ${fmtMoney(c.total)}</b></td><td>${fmtDataD(x.fim)}</td><td>${pagCel}</td><td style="white-space:nowrap"><button class="btn btn-primary btn-sm" onclick="abrirPagamentos(${c.id},'${x.refYM}')">Pagamentos</button>${(c.status==='ativo'&&!c.paraRetirada)?` <button class="btn btn-info btn-sm" onclick="enviarParaRetirada(${c.id})">P/ retirada</button>`:''}${!quit?` <button class="btn btn-ghost btn-sm" onclick="forcarVencidoMes(${c.id},'${x.refYM}')" title="Marca/desmarca este mês como vencido">${(c.vencidosManuais||[]).includes(x.refYM)?'✓ Vencido':'Forçar vencido'}</button>`:''}</td></tr>`;
   };
   // Agrupa por dia do início (dia do ciclo), em ordem
   const grupos={};
@@ -3252,13 +3251,18 @@ function renderPagModal(){
   document.getElementById('pag-content').innerHTML=html;
 }
 // Força/desforça um mês como vencido (casos específicos) — reflete em Vencimentos, Financeiro e saldo devido
-function toggleVencidoManual(){
-  const c=DB.get('contratos').find(x=>x.id===_pagContratoId);if(!c)return;
-  const ref=_pagMesRef||inicioYM(c);
+function forcarVencidoMes(id,ref){
+  const c=DB.get('contratos').find(x=>x.id==id);if(!c)return;
   let lista=Array.isArray(c.vencidosManuais)?c.vencidosManuais.slice():[];
   lista=lista.includes(ref)?lista.filter(x=>x!==ref):lista.concat([ref]);
-  DB.set('contratos',DB.get('contratos').map(x=>x.id===_pagContratoId?{...x,vencidosManuais:lista}:x));
-  renderPagModal();rerenderPaginaAtiva();
+  DB.set('contratos',DB.get('contratos').map(x=>x.id==id?{...x,vencidosManuais:lista}:x));
+  rerenderPaginaAtiva();
+}
+// Mesmo toggle, mas a partir do modal de Pagamentos (mantém o modal aberto)
+function toggleVencidoManual(){
+  const c=DB.get('contratos').find(x=>x.id===_pagContratoId);if(!c)return;
+  forcarVencidoMes(_pagContratoId,_pagMesRef||inicioYM(c));
+  renderPagModal();
 }
 function _pagSalvar(lista){
   DB.set('contratos',DB.get('contratos').map(x=>x.id===_pagContratoId?{...x,pagamentos:lista}:x));
