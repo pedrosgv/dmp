@@ -611,7 +611,8 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
 
 <!-- RETIRADAS -->
 <div class="page" id="page-retiradas">
-  <div class="page-header"><h2>Retiradas</h2><p>Equipamentos a recolher (contratos encerrando ou marcados para retirada)</p></div>
+  <div class="page-header"><h2>Retiradas</h2><p>Equipamentos a recolher (contratos marcados para retirada)</p></div>
+  <div id="retiradas-proxima" style="margin-bottom:16px"></div>
   <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:13px;margin-bottom:22px" id="retiradas-stats"></div>
   <div class="card" style="margin-bottom:16px">
     <div class="card-header"><h3>Itens a retirar (ajustes de contrato)</h3></div>
@@ -623,15 +624,15 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
   </div>
   <div class="card" style="margin-bottom:16px">
     <div class="card-header"><h3>Atrasadas</h3></div>
-    <div class="card-body"><table><thead><tr><th>#</th><th>Cliente</th><th>Equipamentos</th><th>Início</th><th>Término</th><th>Dias</th><th>Ações</th></tr></thead><tbody id="ret-atrasadas"></tbody></table></div>
+    <div class="card-body"><table><thead><tr><th>#</th><th>Cliente</th><th>Equipamentos</th><th>Início</th><th>Retirada em</th><th>Dias</th><th>Ações</th></tr></thead><tbody id="ret-atrasadas"></tbody></table></div>
   </div>
   <div class="card" style="margin-bottom:16px">
     <div class="card-header"><h3>Hoje</h3></div>
-    <div class="card-body"><table><thead><tr><th>#</th><th>Cliente</th><th>Equipamentos</th><th>Início</th><th>Término</th><th>Dias</th><th>Ações</th></tr></thead><tbody id="ret-hoje"></tbody></table></div>
+    <div class="card-body"><table><thead><tr><th>#</th><th>Cliente</th><th>Equipamentos</th><th>Início</th><th>Retirada em</th><th>Dias</th><th>Ações</th></tr></thead><tbody id="ret-hoje"></tbody></table></div>
   </div>
   <div class="card">
     <div class="card-header"><h3>Próximas / marcadas</h3></div>
-    <div class="card-body"><table><thead><tr><th>#</th><th>Cliente</th><th>Equipamentos</th><th>Início</th><th>Término</th><th>Dias</th><th>Ações</th></tr></thead><tbody id="ret-proximas"></tbody></table></div>
+    <div class="card-body"><table><thead><tr><th>#</th><th>Cliente</th><th>Equipamentos</th><th>Início</th><th>Retirada em</th><th>Dias</th><th>Ações</th></tr></thead><tbody id="ret-proximas"></tbody></table></div>
   </div>
 </div>
 
@@ -1174,6 +1175,22 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
   </div>
 </div>
 
+<!-- ESCOLHER DIA DA RETIRADA -->
+<div class="modal-overlay" id="modal-data-retirada">
+  <div class="modal" style="max-width:440px">
+    <div class="modal-header"><h3>Enviar para retirada</h3><button class="modal-close" onclick="closeModal('modal-data-retirada')">×</button></div>
+    <div class="modal-body">
+      <p style="color:var(--muted);font-size:13px;margin:0 0 12px">Selecione o dia em que os equipamentos serão retirados.</p>
+      <div class="form-group"><label>DIA DA RETIRADA</label><input id="data-retirada-input" type="date"></div>
+      <div id="data-retirada-proxima"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-data-retirada')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmarDataRetirada()">Confirmar retirada</button>
+    </div>
+  </div>
+</div>
+
 <!-- Menu de ações do contrato (☰) -->
 <div id="contrato-menu" style="display:none;position:fixed;z-index:300;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 30px rgba(15,23,42,.18);padding:6px;min-width:190px"></div>
 
@@ -1189,7 +1206,7 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSess
 const FIELD_MAP={
   equipamentos:{toDb:o=>({id:o.id,nome:o.nome,cat:o.cat,qty:o.qty,em_uso:o.emUso||0,manutencao:o.manutencao||0,diario:o.diario,semanal:o.semanal,quinzenal:o.quinzenal||0,mensal:o.mensal,unidade:o.unidade,status:o.status,descricao:o.desc||'',grupo:o.grupo||null,tipo_controle:o.tipoControle||'quantidade',componentes:o.componentes||[],foto:o.foto||null,fotos:o.fotos||[]}),fromDb:r=>({id:r.id,nome:r.nome,cat:r.cat,qty:r.qty,emUso:r.em_uso,manutencao:r.manutencao,diario:Number(r.diario),semanal:Number(r.semanal),quinzenal:Number(r.quinzenal||0),mensal:Number(r.mensal),unidade:r.unidade,status:r.status,desc:r.descricao||'',grupo:r.grupo||'',tipoControle:r.tipo_controle||'quantidade',componentes:r.componentes||[],foto:r.foto||'',fotos:r.fotos||[]})},
   clientes:{toDb:o=>({id:o.id,nome:o.nome,tipo:o.tipo,doc:o.doc,rg:o.rg,tel:o.tel,email:o.email,endereco:o.end,obs:o.obs,debitos:o.debitos||[]}),fromDb:r=>({id:r.id,nome:r.nome,tipo:r.tipo,doc:r.doc,rg:r.rg,tel:r.tel,email:r.email,end:r.endereco,obs:r.obs,debitos:r.debitos||[]})},
-  contratos:{toDb:o=>({id:o.id,cliente_id:o.clienteId,inicio:o.inicio,fim:o.fim||null,pagamento:o.pagamento,status:o.status,local:o.local,itens:o.itens||[],total:o.total||0,desconto:o.desconto||0,frete:o.frete||0,pago:!!o.pago,pagamentos:o.pagamentos||[],obs:o.obs,para_retirada:!!o.paraRetirada,renovado_de:o.renovadoDe||null,filial_id:o.filialId||null,sem_estoque:!!o.semEstoque,avulso:!!o.avulso,paga_em:o.pagaEm||'mesmo',movimentacoes:o.movimentacoes||[],finalizado_em:o.finalizadoEm||null,vencidos_manuais:o.vencidosManuais||[]}),fromDb:r=>({id:r.id,clienteId:r.cliente_id,inicio:r.inicio,fim:r.fim,pagamento:r.pagamento,status:r.status,local:r.local,itens:r.itens||[],total:Number(r.total),desconto:Number(r.desconto||0),frete:Number(r.frete||0),pago:r.pago,pagamentos:r.pagamentos||[],obs:r.obs,criadoEm:r.created_at,paraRetirada:!!r.para_retirada,renovadoDe:r.renovado_de,filialId:r.filial_id,semEstoque:!!r.sem_estoque,avulso:!!r.avulso,pagaEm:r.paga_em||'mesmo',movimentacoes:r.movimentacoes||[],finalizadoEm:r.finalizado_em||null,vencidosManuais:r.vencidos_manuais||[]})},
+  contratos:{toDb:o=>({id:o.id,cliente_id:o.clienteId,inicio:o.inicio,fim:o.fim||null,pagamento:o.pagamento,status:o.status,local:o.local,itens:o.itens||[],total:o.total||0,desconto:o.desconto||0,frete:o.frete||0,pago:!!o.pago,pagamentos:o.pagamentos||[],obs:o.obs,para_retirada:!!o.paraRetirada,renovado_de:o.renovadoDe||null,filial_id:o.filialId||null,sem_estoque:!!o.semEstoque,avulso:!!o.avulso,paga_em:o.pagaEm||'mesmo',movimentacoes:o.movimentacoes||[],finalizado_em:o.finalizadoEm||null,vencidos_manuais:o.vencidosManuais||[],data_retirada:o.dataRetirada||null}),fromDb:r=>({id:r.id,clienteId:r.cliente_id,inicio:r.inicio,fim:r.fim,pagamento:r.pagamento,status:r.status,local:r.local,itens:r.itens||[],total:Number(r.total),desconto:Number(r.desconto||0),frete:Number(r.frete||0),pago:r.pago,pagamentos:r.pagamentos||[],obs:r.obs,criadoEm:r.created_at,paraRetirada:!!r.para_retirada,renovadoDe:r.renovado_de,filialId:r.filial_id,semEstoque:!!r.sem_estoque,avulso:!!r.avulso,pagaEm:r.paga_em||'mesmo',movimentacoes:r.movimentacoes||[],finalizadoEm:r.finalizado_em||null,vencidosManuais:r.vencidos_manuais||[],dataRetirada:r.data_retirada||null})},
   manutencoes:{toDb:o=>({id:o.id,equip_id:o.equipId,data:o.data,tipo:o.tipo,valor:o.valor||0,responsavel:o.resp,descricao:o.desc,revisao_concluida:!!o.revisaoConcluida,itens_feitos:o.itensFeitos||[]}),fromDb:r=>({id:r.id,equipId:r.equip_id,data:r.data,tipo:r.tipo,valor:Number(r.valor),resp:r.responsavel,desc:r.descricao,revisaoConcluida:r.revisao_concluida,itensFeitos:r.itens_feitos||[]})},
   filiais:{toDb:o=>({id:o.id,nome:o.nome,cnpj:o.cnpj||null,endereco:o.endereco||null,telefone:o.telefone||null,email:o.email||null}),fromDb:r=>({id:r.id,nome:r.nome,cnpj:r.cnpj||'',endereco:r.endereco||'',telefone:r.telefone||'',email:r.email||''})},
 };
@@ -2055,10 +2072,29 @@ function marcarRetirado(id){
   recalcularEmUso();rerenderPaginaAtiva();
 }
 // Marca "retirada certa": entra na lista de Retiradas e, no planejamento futuro, libera o estoque no fim
-function enviarParaRetirada(id){
-  DB.set('contratos',DB.get('contratos').map(c=>c.id==id?{...c,paraRetirada:true}:c));
-  recalcularEmUso();rerenderPaginaAtiva();
-  alert('Contrato marcado para retirada. Aparecerá na aba Retiradas.');
+let _retiradaId=null;
+// Abre o modal pra escolher o DIA da retirada antes de marcar
+function abrirDataRetirada(id){
+  const c=DB.get('contratos').find(x=>x.id==id);if(!c)return;
+  _retiradaId=id;
+  document.getElementById('data-retirada-input').value=c.dataRetirada||c.fim||hoje();
+  const px=proximaRetirada();
+  document.getElementById('data-retirada-proxima').innerHTML=px?`<div class="alert alert-info" style="margin-top:12px">Próxima retirada já agendada: <b>${fmtData(px.c.dataRetirada)}</b> — #${px.c.id}</div>`:'';
+  openModal('modal-data-retirada');
+}
+function confirmarDataRetirada(){
+  const d=document.getElementById('data-retirada-input').value;
+  if(!d){alert('Selecione o dia da retirada.');return;}
+  DB.set('contratos',DB.get('contratos').map(c=>c.id==_retiradaId?{...c,paraRetirada:true,dataRetirada:d}:c));
+  recalcularEmUso();closeModal('modal-data-retirada');rerenderPaginaAtiva();
+  alert('Retirada agendada para '+fmtData(d)+'. Aparecerá na aba Retiradas.');
+}
+// Próxima retirada agendada (contrato ativo + marcado, data mais próxima de hoje pra frente)
+function proximaRetirada(){
+  const h=new Date();h.setHours(0,0,0,0);
+  const arr=DB.get('contratos').filter(c=>c.status==='ativo'&&c.paraRetirada&&c.dataRetirada)
+    .map(c=>({c,d:new Date(c.dataRetirada+'T12:00:00')})).filter(x=>x.d>=h).sort((a,b)=>a.d-b.d);
+  return arr[0]||null;
 }
 // Agenda uma retirada parcial: selecoes=[{idx,qty}] define quais itens e quanto retirar. Segura o estoque até concluir.
 function aplicarRetiradaParcial(id,selecoes){
@@ -2205,7 +2241,7 @@ function renderValidade(){
         <td style="white-space:nowrap">
           <button class="btn btn-ghost btn-sm" onclick="verContrato(${c.id})">Contrato</button>
           <button class="btn btn-primary btn-sm" onclick="abrirPagamentos(${c.id},'${v.refYM}')">Pagamentos</button>
-          <button class="btn btn-info btn-sm" onclick="enviarParaRetirada(${c.id})">Enviar p/ retirada</button>
+          <button class="btn btn-info btn-sm" onclick="abrirDataRetirada(${c.id})">Enviar p/ retirada</button>
         </td>
       </tr>`;
     }).join('');
@@ -2272,9 +2308,14 @@ function renderEntregas(){
 function renderRetiradas(){
   const cts=DB.get('contratos').filter(c=>c.status==='ativo'&&c.paraRetirada);
   const cls=DB.get('clientes'),eq=DB.get('equipamentos');
-  const atrasadas=cts.filter(c=>c.fim&&diasAte(c.fim)<0);
-  const hoje_=cts.filter(c=>c.fim&&diasAte(c.fim)===0);
-  const proximas=cts.filter(c=>!c.fim||diasAte(c.fim)>0).sort((a,b)=>!a.fim?1:!b.fim?-1:a.fim<b.fim?-1:1);
+  const dR=c=>c.dataRetirada||c.fim||null; // data de referência = dia da retirada escolhido (fallback término)
+  const atrasadas=cts.filter(c=>dR(c)&&diasAte(dR(c))<0);
+  const hoje_=cts.filter(c=>dR(c)&&diasAte(dR(c))===0);
+  const proximas=cts.filter(c=>!dR(c)||diasAte(dR(c))>0).sort((a,b)=>{const da=dR(a),db=dR(b);return !da?1:!db?-1:da<db?-1:1;});
+  // Banner: próxima retirada agendada
+  const px=proximaRetirada();
+  const bn=document.getElementById('retiradas-proxima');
+  if(bn)bn.innerHTML=px?(()=>{const cl=cls.find(x=>x.id===px.c.clienteId)||{nome:'—'};const dd=diasAte(px.c.dataRetirada);const eqs=px.c.itens.map(it=>{const e=eq.find(x=>x.id==it.equipId);return e?`${it.qty}x ${e.nome}`:'';}).filter(Boolean).join(', ');return`<div class="alert alert-warning" style="font-size:14px">🔔 <b>Próxima retirada: ${fmtData(px.c.dataRetirada)}</b> (${dd<=0?'hoje':'em '+dd+' dia(s)'}) — #${px.c.id}, ${cl.nome}${eqs?' · '+eqs:''}</div>`;})():'';
 
   document.getElementById('retiradas-stats').innerHTML=`
     <div class="stat-card red"><div class="val">${atrasadas.length}</div><div class="lbl">Atrasadas</div></div>
@@ -2286,7 +2327,8 @@ function renderRetiradas(){
     return arr.map(c=>{
       const cl=cls.find(x=>x.id===c.clienteId)||{nome:'—'};
       const eqs=c.itens.map(it=>{const e=eq.find(x=>x.id==it.equipId);return e?`${it.qty}x ${e.nome}`:'—';}).join(', ');
-      const dias=c.fim?diasAte(c.fim):null;
+      const dr=c.dataRetirada||c.fim||null;
+      const dias=dr?diasAte(dr):null;
       const diasTxt=dias===null?'—':dias<0?`<span class="badge badge-red">${Math.abs(dias)} dia(s) atrás</span>`:dias===0?`<span class="badge badge-warning">hoje</span>`:`<span class="badge badge-warning">${dias} dia(s)</span>`;
       const marcado=c.paraRetirada?'<span class="badge badge-blue" style="margin-right:4px">marcado</span>':'';
       return`<tr data-status="ativo">
@@ -2294,7 +2336,7 @@ function renderRetiradas(){
         <td>${marcado}${cl.nome}<br><span style="font-size:11px;color:var(--muted)">${cl.tel||''}</span></td>
         <td style="max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${eqs}</td>
         <td>${fmtData(c.inicio)}</td>
-        <td>${c.fim?fmtData(c.fim):'—'}</td>
+        <td>${dr?fmtData(dr):'—'}</td>
         <td>${diasTxt}</td>
         <td style="white-space:nowrap">
           <button class="btn btn-ghost btn-sm" onclick="verContrato(${c.id})">Contrato</button>
@@ -3109,7 +3151,7 @@ function renderFinanceiro(){
     else if(receb>0)pagCel=`<span class="badge badge-blue">Parcial</span><div style="font-size:11px;color:var(--muted);margin-top:3px">R$ ${fmtMoney(receb)} / ${fmtMoney(c.total)} · falta R$ ${fmtMoney(saldo)}</div>`;
     else pagCel='<span class="badge badge-orange">Pendente</span>';
     const eqs=(c.itens||[]).map(it=>{const e=eq.find(y=>y.id==it.equipId);return e?`${e.nome} (${it.qty})`:'—';}).join(', ')||'—';
-    return`<tr data-status="${c.status}"${vencAttr}><td>#${c.id}</td><td>${cl.nome}</td><td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${eqs}">${eqs}</td><td style="white-space:nowrap">${x.periodo}</td><td><b>R$ ${fmtMoney(c.total)}</b></td><td>${fmtDataD(x.fim)}</td><td>${pagCel}</td><td style="white-space:nowrap"><button class="btn btn-primary btn-sm" onclick="abrirPagamentos(${c.id},'${x.refYM}')">Pagamentos</button>${(c.status==='ativo'&&!c.paraRetirada)?` <button class="btn btn-info btn-sm" onclick="enviarParaRetirada(${c.id})">P/ retirada</button>`:''}</td></tr>`;
+    return`<tr data-status="${c.status}"${vencAttr}><td>#${c.id}</td><td>${cl.nome}</td><td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${eqs}">${eqs}</td><td style="white-space:nowrap">${x.periodo}</td><td><b>R$ ${fmtMoney(c.total)}</b></td><td>${fmtDataD(x.fim)}</td><td>${pagCel}</td><td style="white-space:nowrap"><button class="btn btn-primary btn-sm" onclick="abrirPagamentos(${c.id},'${x.refYM}')">Pagamentos</button>${(c.status==='ativo'&&!c.paraRetirada)?` <button class="btn btn-info btn-sm" onclick="abrirDataRetirada(${c.id})">P/ retirada</button>`:''}</td></tr>`;
   };
   // Agrupa por dia do início (dia do ciclo), em ordem
   const grupos={};
