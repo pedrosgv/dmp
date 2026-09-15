@@ -144,6 +144,7 @@ textarea{resize:vertical;min-height:72px;}
 .page-top,.page>.page-header{position:sticky;top:0;z-index:20;background:var(--bg);margin:-30px -30px 16px;padding:30px 30px 12px;}
 .page-top>.page-header{margin-bottom:14px;}
 .page-top .search-row{margin-bottom:0;}
+#fin-busca{min-width:160px;}
 /* Cabeçalho da tabela gruda logo abaixo do topo fixo (--topo-h é medido por ajustarTopoFixo).
    Só no desktop: no mobile o thead é escondido e a tabela vira cartões. */
 @media (min-width:769px){
@@ -252,14 +253,23 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
   .sidebar.open{transform:translateX(0);}
   .mobile-menu-btn{display:flex;align-items:center;justify-content:center;}
 
-  /* Conteúdo principal — espaço pro botão hamburger */
-  .main{padding-top:64px;}
+  /* O espaço do botão ☰ é dado pelo próprio topo fixo, não por um vão morto aqui */
+  .main{padding-top:0;}
   .page{padding:14px 14px 80px;}
-  /* Topo fixo no mobile: recua da esquerda pra não ficar atrás do botão ☰ (fixed) */
-  .page-top,.page>.page-header{margin:-14px -14px 12px;padding:14px 14px 10px 58px;}
-  .page-header{margin-bottom:16px;}
-  .page-header h2{font-size:21px;}
-  .page-header p{font-size:12.5px;}
+  /* Topo fixo compacto: o título divide a linha com o botão ☰ (que é fixed, à esquerda).
+     Nada de recuo no wrapper inteiro — só o h2 desvia do botão, então a busca e a lista
+     continuam alinhadas na mesma margem. */
+  /* z-index 9: acima do conteúdo, mas ABAIXO do backdrop (11) e da sidebar (12) —
+     senão o topo fixo fica por cima do menu lateral quando ele abre (regra 4). */
+  .page-top,.page>.page-header{margin:-14px -14px 10px;padding:12px 14px 9px;border-bottom:1px solid var(--border);z-index:9;}
+  .page-top>.page-header{margin-bottom:9px;}
+  .page-header{margin-bottom:12px;}
+  .page-header h2{font-size:19px;padding-left:52px;min-height:42px;display:flex;align-items:center;}
+  .page-header p{display:none;} /* subtítulo sai no celular: a faixa fixa já é estreita demais */
+  /* Financeiro: mês numa linha; busca e filtro dividem a seguinte */
+  #page-financeiro .search-row #fin-mes-seletor{flex:1 1 auto;max-width:none;}
+  #page-financeiro .search-row #fin-busca{flex:1 1 45%;min-width:120px;}
+  #page-financeiro .search-row #fin-filtro{flex:1 1 45%;max-width:none;}
 
   /* Stats em grade compacta de 2 colunas */
   .stats-grid{grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;}
@@ -814,7 +824,7 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
       <button class="btn btn-ghost btn-sm" onclick="finNavMes(1)" title="Mês anterior">←</button>
       <select class="search-input" id="fin-mes-seletor" style="flex:0 0 auto;max-width:190px" onchange="renderFinanceiro()"></select>
       <button class="btn btn-ghost btn-sm" onclick="finNavMes(-1)" title="Próximo mês">→</button>
-      <input class="search-input" id="fin-busca" style="min-width:160px" placeholder="Buscar cliente ou endereço..." oninput="renderFinanceiro()">
+      <input class="search-input" id="fin-busca" placeholder="Buscar cliente ou endereço..." oninput="renderFinanceiro()">
       <select class="search-input" id="fin-filtro" style="flex:0 0 auto;max-width:215px" onchange="renderFinanceiro()">
         <option value="todos">Todas as cobranças</option>
         <option value="aberto">Somente em aberto</option>
@@ -3340,6 +3350,8 @@ function renderFinanceiro(){
     if(quit)pagCel='<span class="badge badge-green">Pago</span>';
     else if(receb>0)pagCel=`<span class="badge badge-blue">Parcial</span><div style="font-size:11px;color:var(--muted);margin-top:3px">R$ ${fmtMoney(receb)} / ${fmtMoney(c.total)} · falta R$ ${fmtMoney(saldo)}</div>`;
     else pagCel='<span class="badge badge-orange">Pendente</span>';
+    // Telefone do cliente logo abaixo do status — pra ligar cobrando sem sair da tela
+    if(cl.tel)pagCel+=`<div style="font-size:11px;color:var(--muted);margin-top:3px">${cl.tel}</div>`;
     const eqs=(c.itens||[]).map(it=>{const e=eq.find(y=>y.id==it.equipId);return e?`${e.nome} (${it.qty})`:'—';}).join(', ')||'—';
     return`<tr data-status="${c.status}"${vencAttr}><td>#${c.id}</td><td>${cl.nome}${c.local?`<br><span style="font-size:11px;color:var(--muted)">${c.local}</span>`:''}</td><td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${eqs}">${eqs}</td><td style="white-space:nowrap">${x.periodo}</td><td><b>R$ ${fmtMoney(c.total)}</b></td><td>${fmtDataD(x.fim)}</td><td>${pagCel}</td><td style="white-space:nowrap"><button class="btn btn-primary btn-sm" onclick="abrirPagamentos(${c.id},'${x.refYM}')">Pagamentos</button>${(c.status==='ativo'&&!c.paraRetirada)?` <button class="btn btn-info btn-sm" onclick="abrirDataRetirada(${c.id})">P/ retirada</button>`:''}</td></tr>`;
   };
