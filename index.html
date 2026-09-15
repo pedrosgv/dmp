@@ -140,6 +140,15 @@ textarea{resize:vertical;min-height:72px;}
 .search-row{display:flex;gap:9px;margin-bottom:14px;align-items:center;}
 .search-input{flex:1;background:var(--surface);border:1.5px solid var(--border);border-radius:9px;padding:8px 13px;color:var(--text);font-size:13px;font-family:'DM Sans',sans-serif;outline:none;transition:border-color .16s ease,box-shadow .16s ease;}
 .search-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--ring);}
+/* TOPO FIXO — o título (e a barra de busca) acompanham a rolagem. Quem rola é o .main, então sticky aqui gruda no topo da área de conteúdo. */
+.page-top,.page>.page-header{position:sticky;top:0;z-index:20;background:var(--bg);margin:-30px -30px 16px;padding:30px 30px 12px;}
+.page-top>.page-header{margin-bottom:14px;}
+.page-top .search-row{margin-bottom:0;}
+/* Cabeçalho da tabela gruda logo abaixo do topo fixo (--topo-h é medido por ajustarTopoFixo).
+   Só no desktop: no mobile o thead é escondido e a tabela vira cartões. */
+@media (min-width:769px){
+  .page .card-body table thead th{position:sticky;top:var(--topo-h,0px);z-index:5;}
+}
 ::-webkit-scrollbar{width:6px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:#c9d2e4;border-radius:99px;}
 /* VALIDADE */
 .validity-row{display:grid;grid-template-columns:1fr 1fr 1fr 1fr 120px 110px;gap:0;align-items:center;}
@@ -246,6 +255,8 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
   /* Conteúdo principal — espaço pro botão hamburger */
   .main{padding-top:64px;}
   .page{padding:14px 14px 80px;}
+  /* Topo fixo no mobile: recua da esquerda pra não ficar atrás do botão ☰ (fixed) */
+  .page-top,.page>.page-header{margin:-14px -14px 12px;padding:14px 14px 10px 58px;}
   .page-header{margin-bottom:16px;}
   .page-header h2{font-size:21px;}
   .page-header p{font-size:12.5px;}
@@ -350,7 +361,7 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
 /* PRINT */
 @media print{
   /* Oculta elementos da interface que não devem ser impressos */
-  .sidebar,.page-header,.search-row,.btn,.modal-overlay,.modal-header,.modal-footer,button,.nav-item,.card-header button{
+  .sidebar,.page-top,.page-header,.search-row,.btn,.modal-overlay,.modal-header,.modal-footer,button,.nav-item,.card-header button{
     display:none!important;
   }
   /* Força body a exibir conteúdo normalmente */
@@ -522,20 +533,24 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
 
 <!-- EQUIPAMENTOS -->
 <div class="page" id="page-equipamentos">
-  <div class="page-header"><h2>Equipamentos</h2><p>Catálogo e gestão dos equipamentos para aluguel</p></div>
-  <div class="search-row">
-    <input class="search-input" placeholder="Buscar equipamento..." oninput="renderEquipamentos(this.value)">
-    <button class="btn btn-primary" onclick="popularGruposDatalist();openModal('modal-equip')">+ Novo Equipamento</button>
+  <div class="page-top">
+    <div class="page-header"><h2>Equipamentos</h2><p>Catálogo e gestão dos equipamentos para aluguel</p></div>
+    <div class="search-row">
+      <input class="search-input" placeholder="Buscar equipamento..." oninput="renderEquipamentos(this.value)">
+      <button class="btn btn-primary" onclick="popularGruposDatalist();openModal('modal-equip')">+ Novo Equipamento</button>
+    </div>
   </div>
   <div class="equip-grid" id="equip-grid"></div>
 </div>
 
 <!-- CLIENTES -->
 <div class="page" id="page-clientes">
-  <div class="page-header"><h2>Clientes</h2><p>Cadastro completo de clientes</p></div>
-  <div class="search-row">
-    <input class="search-input" placeholder="Buscar cliente..." oninput="renderClientes(this.value)">
-    <button class="btn btn-primary" onclick="openModal('modal-cliente')">+ Novo Cliente</button>
+  <div class="page-top">
+    <div class="page-header"><h2>Clientes</h2><p>Cadastro completo de clientes</p></div>
+    <div class="search-row">
+      <input class="search-input" placeholder="Buscar cliente..." oninput="renderClientes(this.value)">
+      <button class="btn btn-primary" onclick="resetClienteForm();openModal('modal-cliente')">+ Novo Cliente</button>
+    </div>
   </div>
   <div class="card"><div class="card-body">
     <table>
@@ -547,10 +562,20 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
 
 <!-- CONTRATOS -->
 <div class="page" id="page-contratos">
-  <div class="page-header"><h2>Contratos &amp; Fatura</h2><p>Gere, edite e imprima contratos de aluguel</p></div>
-  <div class="search-row">
-    <input class="search-input" placeholder="Buscar contrato..." oninput="renderContratos(this.value)">
-    <button class="btn btn-primary" onclick="openModal('modal-contrato')">+ Novo Contrato</button>
+  <div class="page-top">
+    <div class="page-header"><h2>Contratos &amp; Fatura</h2><p>Gere, edite e imprima contratos de aluguel</p></div>
+    <div class="search-row">
+      <input class="search-input" id="contratos-busca" placeholder="Buscar por cliente, nº ou endereço da obra..." oninput="renderContratos(this.value)">
+      <select class="search-input" id="contratos-filtro" style="flex:0 0 auto;max-width:230px" onchange="renderContratos()">
+        <option value="todos">Todos os contratos</option>
+        <option value="avulsa">Somente locações avulsas</option>
+        <option value="recorrente">Somente recorrentes</option>
+        <option value="retirada">Marcados p/ retirada</option>
+        <option value="semestoque">Sem controle de estoque</option>
+        <option value="terceirizado">Com item terceirizado</option>
+      </select>
+      <button class="btn btn-primary" onclick="openModal('modal-contrato')">+ Novo Contrato</button>
+    </div>
   </div>
   <div class="card"><div class="card-body">
     <table>
@@ -783,17 +808,22 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
 
 <!-- FINANCEIRO -->
 <div class="page" id="page-financeiro">
-  <div class="page-header"><h2>Financeiro</h2><p>Receitas e pagamentos</p></div>
-  <div class="card" style="margin-bottom:16px">
-    <div class="card-body" style="display:flex;gap:12px;align-items:end;flex-wrap:wrap">
-      <div style="flex:1;min-width:200px">
-        <label style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Mês</label>
-        <select id="fin-mes-seletor" onchange="renderFinanceiro()"></select>
-      </div>
-      <div style="display:flex;gap:6px">
-        <button class="btn btn-ghost btn-sm" onclick="finNavMes(1)">← Anterior</button>
-        <button class="btn btn-ghost btn-sm" onclick="finNavMes(-1)">Próximo →</button>
-      </div>
+  <div class="page-top">
+    <div class="page-header"><h2>Financeiro</h2><p>Receitas e pagamentos</p></div>
+    <div class="search-row" style="flex-wrap:wrap">
+      <button class="btn btn-ghost btn-sm" onclick="finNavMes(1)" title="Mês anterior">←</button>
+      <select class="search-input" id="fin-mes-seletor" style="flex:0 0 auto;max-width:190px" onchange="renderFinanceiro()"></select>
+      <button class="btn btn-ghost btn-sm" onclick="finNavMes(-1)" title="Próximo mês">→</button>
+      <input class="search-input" id="fin-busca" style="min-width:160px" placeholder="Buscar cliente..." oninput="renderFinanceiro()">
+      <select class="search-input" id="fin-filtro" style="flex:0 0 auto;max-width:215px" onchange="renderFinanceiro()">
+        <option value="todos">Todas as cobranças</option>
+        <option value="aberto">Somente em aberto</option>
+        <option value="pago">Somente pagas</option>
+        <option value="vencido">Somente vencidas</option>
+        <option value="avulsa">Somente locações avulsas</option>
+        <option value="recorrente">Somente recorrentes</option>
+        <option value="retirada">Marcados p/ retirada</option>
+      </select>
     </div>
   </div>
   <div class="stats-grid" id="fin-stats"></div>
@@ -931,6 +961,11 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
         <div class="form-group"><label>RG / IE</label><input id="cliente-rg" placeholder="00.000.000-0 ou Inscrição Estadual"></div>
         <div class="form-group"><label>TELEFONE / WHATSAPP</label><input id="cliente-tel" placeholder="(11) 99999-9999"></div>
         <div class="form-group"><label>E-MAIL</label><input id="cliente-email" type="email" placeholder="email@exemplo.com"></div>
+        <div class="form-group full">
+          <label>OUTROS TELEFONES <span style="font-weight:400;color:var(--muted);text-transform:none;letter-spacing:0">(opcional)</span></label>
+          <div id="cliente-tels-lista"></div>
+          <button type="button" class="btn btn-ghost btn-sm" style="margin-top:7px" onclick="addTelExtra()">+ Adicionar telefone</button>
+        </div>
         <div class="form-group full"><label>ENDEREÇO</label><input id="cliente-end" placeholder="Rua, número, bairro, cidade, CEP"></div>
         <div class="form-group full"><label>OBSERVAÇÕES</label><textarea id="cliente-obs" placeholder="Histórico, preferências..."></textarea></div>
       </div>
@@ -1082,7 +1117,7 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
     <div class="modal-header">
       <h3>Visualizar Contrato</h3>
       <div style="display:flex;gap:7px;align-items:center">
-        <button class="btn btn-primary btn-sm" onclick="baixarContrato()">⬇ Baixar para Imprimir</button>
+        <button class="btn btn-primary btn-sm" onclick="baixarContrato()">🖨 Imprimir / Salvar PDF</button>
         <button class="modal-close" onclick="closeModal('modal-ver-contrato')">×</button>
       </div>
     </div>
@@ -1099,7 +1134,7 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
     <div class="modal-header">
       <h3>Fatura de Locação</h3>
       <div style="display:flex;gap:7px;align-items:center">
-        <button class="btn btn-primary btn-sm" onclick="baixarFatura()">⬇ Baixar para Imprimir</button>
+        <button class="btn btn-primary btn-sm" onclick="baixarFatura()">🖨 Imprimir / Salvar PDF</button>
         <button class="modal-close" onclick="closeModal('modal-ver-fatura')">×</button>
       </div>
     </div>
@@ -1205,7 +1240,7 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSess
 // Mapeamento JS<->DB: como o banco usa snake_case e o JS usa camelCase, normalizamos
 const FIELD_MAP={
   equipamentos:{toDb:o=>({id:o.id,nome:o.nome,cat:o.cat,qty:o.qty,em_uso:o.emUso||0,manutencao:o.manutencao||0,diario:o.diario,semanal:o.semanal,quinzenal:o.quinzenal||0,mensal:o.mensal,unidade:o.unidade,status:o.status,descricao:o.desc||'',grupo:o.grupo||null,tipo_controle:o.tipoControle||'quantidade',componentes:o.componentes||[],foto:o.foto||null,fotos:o.fotos||[]}),fromDb:r=>({id:r.id,nome:r.nome,cat:r.cat,qty:r.qty,emUso:r.em_uso,manutencao:r.manutencao,diario:Number(r.diario),semanal:Number(r.semanal),quinzenal:Number(r.quinzenal||0),mensal:Number(r.mensal),unidade:r.unidade,status:r.status,desc:r.descricao||'',grupo:r.grupo||'',tipoControle:r.tipo_controle||'quantidade',componentes:r.componentes||[],foto:r.foto||'',fotos:r.fotos||[]})},
-  clientes:{toDb:o=>({id:o.id,nome:o.nome,tipo:o.tipo,doc:o.doc,rg:o.rg,tel:o.tel,email:o.email,endereco:o.end,obs:o.obs,debitos:o.debitos||[]}),fromDb:r=>({id:r.id,nome:r.nome,tipo:r.tipo,doc:r.doc,rg:r.rg,tel:r.tel,email:r.email,end:r.endereco,obs:r.obs,debitos:r.debitos||[]})},
+  clientes:{toDb:o=>({id:o.id,nome:o.nome,tipo:o.tipo,doc:o.doc,rg:o.rg,tel:o.tel,telefones:o.telefones||[],email:o.email,endereco:o.end,obs:o.obs,debitos:o.debitos||[]}),fromDb:r=>({id:r.id,nome:r.nome,tipo:r.tipo,doc:r.doc,rg:r.rg,tel:r.tel,telefones:r.telefones||[],email:r.email,end:r.endereco,obs:r.obs,debitos:r.debitos||[]})},
   contratos:{toDb:o=>({id:o.id,cliente_id:o.clienteId,inicio:o.inicio,fim:o.fim||null,pagamento:o.pagamento,status:o.status,local:o.local,itens:o.itens||[],total:o.total||0,desconto:o.desconto||0,frete:o.frete||0,pago:!!o.pago,pagamentos:o.pagamentos||[],obs:o.obs,para_retirada:!!o.paraRetirada,renovado_de:o.renovadoDe||null,filial_id:o.filialId||null,sem_estoque:!!o.semEstoque,avulso:!!o.avulso,paga_em:o.pagaEm||'mesmo',movimentacoes:o.movimentacoes||[],finalizado_em:o.finalizadoEm||null,vencidos_manuais:o.vencidosManuais||[],data_retirada:o.dataRetirada||null}),fromDb:r=>({id:r.id,clienteId:r.cliente_id,inicio:r.inicio,fim:r.fim,pagamento:r.pagamento,status:r.status,local:r.local,itens:r.itens||[],total:Number(r.total),desconto:Number(r.desconto||0),frete:Number(r.frete||0),pago:r.pago,pagamentos:r.pagamentos||[],obs:r.obs,criadoEm:r.created_at,paraRetirada:!!r.para_retirada,renovadoDe:r.renovado_de,filialId:r.filial_id,semEstoque:!!r.sem_estoque,avulso:!!r.avulso,pagaEm:r.paga_em||'mesmo',movimentacoes:r.movimentacoes||[],finalizadoEm:r.finalizado_em||null,vencidosManuais:r.vencidos_manuais||[],dataRetirada:r.data_retirada||null})},
   manutencoes:{toDb:o=>({id:o.id,equip_id:o.equipId,data:o.data,tipo:o.tipo,valor:o.valor||0,responsavel:o.resp,descricao:o.desc,revisao_concluida:!!o.revisaoConcluida,itens_feitos:o.itensFeitos||[]}),fromDb:r=>({id:r.id,equipId:r.equip_id,data:r.data,tipo:r.tipo,valor:Number(r.valor),resp:r.responsavel,desc:r.descricao,revisaoConcluida:r.revisao_concluida,itensFeitos:r.itens_feitos||[]})},
   filiais:{toDb:o=>({id:o.id,nome:o.nome,cnpj:o.cnpj||null,endereco:o.endereco||null,telefone:o.telefone||null,email:o.email||null}),fromDb:r=>({id:r.id,nome:r.nome,cnpj:r.cnpj||'',endereco:r.endereco||'',telefone:r.telefone||'',email:r.email||''})},
@@ -1339,7 +1374,16 @@ function navTo(pg,el){
   if(window.innerWidth<=768)toggleSidebar(false);
   // Aplica rótulos nas células das tabelas (pra ficarem legíveis no celular)
   setTimeout(applyTableLabels,30);
+  setTimeout(ajustarTopoFixo,30);
 }
+// Mede a altura do topo fixo da página ativa e guarda em --topo-h, pra o
+// cabeçalho da tabela grudar logo abaixo dele (a altura muda de aba pra aba).
+function ajustarTopoFixo(){
+  const pg=document.querySelector('.page.active');if(!pg)return;
+  const topo=pg.querySelector(':scope > .page-top')||pg.querySelector(':scope > .page-header');
+  pg.style.setProperty('--topo-h',(topo?topo.offsetHeight:0)+'px');
+}
+window.addEventListener('resize',()=>{clearTimeout(ajustarTopoFixo._t);ajustarTopoFixo._t=setTimeout(ajustarTopoFixo,120);});
 // Abre/fecha o menu lateral no celular
 function toggleSidebar(force){
   const sb=document.querySelector('.sidebar');
@@ -1385,12 +1429,14 @@ function fmtData(s){if(!s)return'—';const p=s.split('-');return`${p[2]}/${p[1]
 function diasAte(s){if(!s)return null;const d=new Date(s+'T12:00:00'),h=new Date();h.setHours(12,0,0,0);return Math.ceil((d-h)/(1000*60*60*24));}
 function addDias(dateStr,n){const d=new Date(dateStr+'T12:00:00');d.setDate(d.getDate()+n);return d.toISOString().split('T')[0];}
 function hoje(){return new Date().toISOString().split('T')[0];}
+// Ordem alfabética pt-BR (respeita acentos) — usada nas listas e nas buscas
+const porNome=(a,b)=>(a.nome||'').localeCompare(b.nome||'','pt-BR');
 
 // ========================
 // EQUIPAMENTOS
 // ========================
 function renderEquipamentos(q=''){
-  let eq=DB.get('equipamentos');
+  let eq=DB.get('equipamentos').slice().sort(porNome);
   if(q){const qq=q.toLowerCase();eq=eq.filter(e=>e.nome.toLowerCase().includes(qq)||e.cat.toLowerCase().includes(qq)||(e.grupo||'').toLowerCase().includes(qq));}
   const g=document.getElementById('equip-grid');
   if(!eq.length){g.innerHTML='<div class="empty-state"><div class="big" style="font-size:38px;opacity:.3">—</div><p>Nenhum equipamento cadastrado</p></div>';return;}
@@ -1616,16 +1662,34 @@ function verHistoricoEquip(id){
 // CLIENTES
 // ========================
 function renderClientes(q=''){
-  let cl=DB.get('clientes');
-  if(q)cl=cl.filter(c=>c.nome.toLowerCase().includes(q.toLowerCase())||(c.doc||'').includes(q)||(c.tel||'').includes(q));
+  let cl=DB.get('clientes').slice().sort(porNome);
+  if(q)cl=cl.filter(c=>c.nome.toLowerCase().includes(q.toLowerCase())||(c.doc||'').includes(q)||(c.tel||'').includes(q)||(c.telefones||[]).some(t=>(t.num||'').includes(q)));
   const tb=document.getElementById('clientes-tbody');
   if(!cl.length){tb.innerHTML='<tr><td colspan="7"><div class="empty-state"><p>Nenhum cliente cadastrado</p></div></td></tr>';return;}
   const ct=DB.get('contratos');
-  tb.innerHTML=cl.map(c=>{const nc=ct.filter(x=>x.clienteId===c.id).length;const ab=totalDebitoAberto(c);return`<tr><td><b>${c.nome}</b></td><td>${c.doc||'—'}</td><td>${c.tel||'—'}</td><td>${c.email||'—'}</td><td><span class="badge badge-blue">${nc}</span></td><td>${ab>0?`<b style="color:var(--danger)">R$ ${fmtMoney(ab)}</b>`:'<span style="color:var(--muted)">—</span>'}</td><td style="white-space:nowrap"><button class="btn btn-warning btn-sm" onclick="abrirDebitos(${c.id})">Débitos</button> <button class="btn btn-ghost btn-sm" onclick="editCliente(${c.id})">Editar</button> <button class="btn btn-danger btn-sm" onclick="delClienteConfirm(${c.id})">Excluir</button></td></tr>`;}).join('');
+  tb.innerHTML=cl.map(c=>{const nc=ct.filter(x=>x.clienteId===c.id).length;const ab=totalDebitoAberto(c);return`<tr><td><b>${c.nome}</b></td><td>${c.doc||'—'}</td><td>${c.tel||'—'}${(c.telefones||[]).map(t=>`<br><span style="font-size:11px;color:var(--muted)">${t.num}${t.rot?` · ${t.rot}`:''}</span>`).join('')}</td><td>${c.email||'—'}</td><td><span class="badge badge-blue">${nc}</span></td><td>${ab>0?`<b style="color:var(--danger)">R$ ${fmtMoney(ab)}</b>`:'<span style="color:var(--muted)">—</span>'}</td><td style="white-space:nowrap"><button class="btn btn-warning btn-sm" onclick="abrirDebitos(${c.id})">Débitos</button> <button class="btn btn-ghost btn-sm" onclick="editCliente(${c.id})">Editar</button> <button class="btn btn-danger btn-sm" onclick="delClienteConfirm(${c.id})">Excluir</button></td></tr>`;}).join('');
 }
+// ---- TELEFONES ADICIONAIS ({num, rot}) — o campo TELEFONE principal continua sendo o `tel` ----
+let _telsExtra=[];
+function renderTelsExtra(){
+  const div=document.getElementById('cliente-tels-lista');if(!div)return;
+  div.innerHTML=_telsExtra.length?_telsExtra.map((t,i)=>`<div style="display:flex;gap:7px;margin-bottom:6px">
+    <input id="tel-extra-${i}" style="flex:1;min-width:0" placeholder="(11) 99999-9999" value="${(t.num||'').replace(/"/g,'&quot;')}">
+    <input id="tel-rot-${i}" style="flex:0 0 140px" placeholder="Ex: Financeiro" value="${(t.rot||'').replace(/"/g,'&quot;')}">
+    <button type="button" class="btn btn-danger btn-sm" style="flex:0 0 auto" onclick="removerTelExtra(${i})" title="Remover telefone">✕</button>
+  </div>`).join(''):'<p class="text-muted" style="font-size:12px;margin:0">Nenhum telefone adicional.</p>';
+  _telsExtra.forEach((t,i)=>{const el=document.getElementById('tel-extra-'+i);if(el)Mask.bind(el,Mask.tel);});
+}
+// Lê o que está digitado antes de redesenhar a lista (os inputs são recriados a cada render)
+function lerTelsExtra(){
+  _telsExtra=_telsExtra.map((t,i)=>({num:(document.getElementById('tel-extra-'+i)?.value||'').trim(),rot:(document.getElementById('tel-rot-'+i)?.value||'').trim()}));
+}
+function addTelExtra(){lerTelsExtra();_telsExtra.push({num:'',rot:''});renderTelsExtra();const el=document.getElementById('tel-extra-'+(_telsExtra.length-1));if(el)el.focus();}
+function removerTelExtra(i){lerTelsExtra();_telsExtra.splice(i,1);renderTelsExtra();}
 function salvarCliente(){
+  lerTelsExtra();
   const id=document.getElementById('cliente-id').value;
-  const obj={id:id?parseInt(id):DB.nextId('clientes'),nome:document.getElementById('cliente-nome').value.trim(),tipo:document.getElementById('cliente-tipo').value,doc:document.getElementById('cliente-doc').value.trim(),rg:document.getElementById('cliente-rg').value.trim(),tel:document.getElementById('cliente-tel').value.trim(),email:document.getElementById('cliente-email').value.trim(),end:document.getElementById('cliente-end').value.trim(),obs:document.getElementById('cliente-obs').value.trim()};
+  const obj={id:id?parseInt(id):DB.nextId('clientes'),nome:document.getElementById('cliente-nome').value.trim(),tipo:document.getElementById('cliente-tipo').value,doc:document.getElementById('cliente-doc').value.trim(),rg:document.getElementById('cliente-rg').value.trim(),tel:document.getElementById('cliente-tel').value.trim(),telefones:_telsExtra.filter(t=>t.num),email:document.getElementById('cliente-email').value.trim(),end:document.getElementById('cliente-end').value.trim(),obs:document.getElementById('cliente-obs').value.trim()};
   if(!obj.nome){alert('Informe o nome.');return;}
   let cl=DB.get('clientes');if(id)cl=cl.map(c=>c.id==id?obj:c);else cl.push(obj);
   DB.set('clientes',cl);closeModal('modal-cliente');resetClienteForm();renderClientes();
@@ -1634,11 +1698,12 @@ function editCliente(id){
   const c=DB.get('clientes').find(x=>x.id==id);if(!c)return;
   document.getElementById('cliente-id').value=c.id;
   ['nome','tipo','doc','rg','tel','email','end','obs'].forEach(f=>document.getElementById('cliente-'+f).value=c[f]||'');
+  _telsExtra=(c.telefones||[]).map(t=>({num:t.num||'',rot:t.rot||''}));renderTelsExtra();
   document.getElementById('cliente-modal-title').textContent='Editar Cliente';openModal('modal-cliente');
   setTimeout(aplicarMascaras,30);
 }
 function delCliente(id){DB.set('clientes',DB.get('clientes').filter(c=>c.id!=id));renderClientes();}
-function resetClienteForm(){['cliente-id','cliente-nome','cliente-doc','cliente-rg','cliente-tel','cliente-email','cliente-end','cliente-obs'].forEach(i=>document.getElementById(i).value='');document.getElementById('cliente-modal-title').textContent='Novo Cliente';}
+function resetClienteForm(){['cliente-id','cliente-nome','cliente-doc','cliente-rg','cliente-tel','cliente-email','cliente-end','cliente-obs'].forEach(i=>document.getElementById(i).value='');document.getElementById('cliente-modal-title').textContent='Novo Cliente';_telsExtra=[];renderTelsExtra();}
 
 // ========================
 // DÉBITOS MANUAIS DO CLIENTE — controle manual de quem deve (não mexe em contratos/estoque/financeiro)
@@ -1725,7 +1790,7 @@ function populateContratoSelects(){
   document.getElementById('lista-cliente-busca').classList.remove('show');
   // Popula filiais
   const selFil=document.getElementById('contrato-filial');
-  selFil.innerHTML='<option value="">— Sem filial (apenas matriz) —</option>'+DB.get('filiais').map(f=>`<option value="${f.id}">${f.nome}</option>`).join('');
+  selFil.innerHTML='<option value="">— Sem filial (apenas matriz) —</option>'+DB.get('filiais').slice().sort(porNome).map(f=>`<option value="${f.id}">${f.nome}</option>`).join('');
   selFil.value='';
   const se=document.getElementById('contrato-sem-estoque');if(se)se.checked=false;
   const av=document.getElementById('contrato-avulso');if(av)av.checked=false;
@@ -1747,7 +1812,7 @@ function filtrarClienteBusca(){
   const lista=document.getElementById('lista-cliente-busca');
   let clientes=DB.get('clientes');
   if(termo)clientes=clientes.filter(c=>c.nome.toLowerCase().includes(termo)||(c.doc||'').includes(termo));
-  clientes=clientes.slice(0,50);
+  clientes=clientes.slice().sort(porNome).slice(0,50);
   if(!clientes.length){
     lista.innerHTML='<div class="busca-select-vazio">Nenhum cliente encontrado</div>';
   }else{
@@ -1837,7 +1902,7 @@ function ajustarTercItem(i,input){
 function filtrarEquipBusca(i){
   const termo=document.getElementById('eq-busca-'+i).value.toLowerCase().trim();
   const lista=document.getElementById('lista-eq-busca-'+i);
-  let equips=DB.get('equipamentos');
+  let equips=DB.get('equipamentos').slice().sort(porNome);
   if(termo)equips=equips.filter(e=>e.nome.toLowerCase().includes(termo)||(e.cat||'').toLowerCase().includes(termo)||(e.grupo||'').toLowerCase().includes(termo));
   if(!equips.length){
     lista.innerHTML='<div class="busca-select-vazio">Nenhum equipamento encontrado</div>';
@@ -1845,8 +1910,10 @@ function filtrarEquipBusca(i){
     lista.innerHTML=equips.slice(0,80).map(e=>{
       const disp=disponibilidadeEquip(e.id,i);
       const esgotado=disp<=0;
+      // Miniatura da foto (betoneiras): clicar nela amplia, sem selecionar o item
+      const mini=e.foto?`<img src="${e.foto}" onclick="event.stopPropagation();abrirLightboxEquip(${e.id})" title="Clique na foto para ampliar" style="width:34px;height:34px;object-fit:cover;border-radius:6px;flex:0 0 auto;cursor:zoom-in">`:'';
       return`<div class="busca-select-item" onclick="selecionarEquip(${i},${e.id})">
-        <span>${e.nome}${e.grupo?` <span style="font-size:10.5px;color:var(--muted)">· ${e.grupo}</span>`:''}</span>
+        <span style="display:flex;align-items:center;gap:8px;min-width:0">${mini}<span>${e.nome}${e.grupo?` <span style="font-size:10.5px;color:var(--muted)">· ${e.grupo}</span>`:''}</span></span>
         <span class="qtd-disp ${esgotado?'zero':''}">${esgotado?'sem estoque — terceirizar':disp+' disponível(is)'}</span>
       </div>`;
     }).join('');
@@ -1974,10 +2041,22 @@ function abrirMenuContrato(ev,id){
 function fecharMenuContrato(){const m=document.getElementById('contrato-menu');if(m)m.style.display='none';}
 document.addEventListener('click',e=>{if(!e.target.closest('#contrato-menu')&&!e.target.closest('.menu-contrato-btn'))fecharMenuContrato();});
 window.addEventListener('scroll',fecharMenuContrato,true);
-function renderContratos(q=''){
+function renderContratos(q){
   let ct=DB.get('contratos').slice().reverse();
   const cls=DB.get('clientes'),eq=DB.get('equipamentos');
-  if(q)ct=ct.filter(c=>{const cl=cls.find(x=>x.id===c.clienteId);return(cl&&cl.nome.toLowerCase().includes(q.toLowerCase()))||String(c.id).includes(q);});
+  // Sem argumento (rerender depois de salvar, troca de filtro...) mantém o que está digitado na busca
+  if(q===undefined)q=document.getElementById('contratos-busca')?.value||'';
+  if(q){const qq=q.toLowerCase();ct=ct.filter(c=>{const cl=cls.find(x=>x.id===c.clienteId);return(cl&&cl.nome.toLowerCase().includes(qq))||String(c.id).includes(q)||(c.local||'').toLowerCase().includes(qq);});}
+  // Filtro da barra superior (vale pros ativos e pra seção de finalizados)
+  const fl=document.getElementById('contratos-filtro')?.value||'todos';
+  if(fl!=='todos')ct=ct.filter(c=>{
+    if(fl==='avulsa')return !!c.avulso;
+    if(fl==='recorrente')return !c.avulso;
+    if(fl==='retirada')return !!c.paraRetirada;
+    if(fl==='semestoque')return !!c.semEstoque;
+    if(fl==='terceirizado')return (c.itens||[]).some(it=>(Number(it.terc)||0)>0);
+    return true;
+  });
   const naoFin=ct.filter(c=>c.status!=='finalizado');
   const finalizados=ct.filter(c=>c.status==='finalizado');
   const tb=document.getElementById('contratos-tbody');
@@ -2007,7 +2086,7 @@ function renderContratos(q=''){
     const renovBt=c.renovadoDe?`<span class="badge badge-blue" style="margin-right:4px">Renovação</span>`:'';
     return`<tr data-status="${c.status}"${vencAttr}>
       <td><b>#${c.id}</b>${renovBt}</td>
-      <td>${cl.nome}</td>
+      <td>${cl.nome}${c.local?`<br><span style="font-size:11px;color:var(--muted)">${c.local}</span>`:''}</td>
       <td style="max-width:150px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${eqs}</td>
       <td>${fmtData(c.inicio)}${(c.status==='ativo'&&recorrente)?'<br><span style="font-size:11px;color:var(--muted)">mensal</span>':''}</td><td>${dur}</td>
       <td>${fimCel}</td>
@@ -2380,7 +2459,7 @@ function renderRetiradas(){
 // MANUTENÇÃO
 // ========================
 function populateManutSelects(){
-  const eq=DB.get('equipamentos');
+  const eq=DB.get('equipamentos').slice().sort(porNome);
   document.getElementById('manut-equip').innerHTML='<option value="">-- Selecione --</option>'+eq.map(e=>`<option value="${e.id}">${e.nome} (${e.cat})</option>`).join('');
   document.getElementById('manut-data').value=hoje();
   document.getElementById('manut-reiniciar').checked=true;
@@ -2575,11 +2654,17 @@ function renderFotosGrid(){
 function removerFotoSlot(i){_infoFotos.splice(i,1);renderFotosGrid();}
 // Visualizador de foto em tela cheia, com navegação por setas/teclado
 let _lightboxFotos=[],_lightboxIdx=0;
-function abrirLightbox(i){
-  _lightboxFotos=_infoFotos.slice();_lightboxIdx=i;
+function abrirLightbox(i){abrirLightboxLista(_infoFotos,i);}
+// Abre o visualizador com qualquer lista de fotos (modal de informações, seletor de equipamento...)
+function abrirLightboxLista(fotos,i){
+  _lightboxFotos=(fotos||[]).slice();_lightboxIdx=i||0;
+  if(!_lightboxFotos.length)return;
   document.getElementById('foto-lightbox').style.display='flex';
   atualizarLightbox();
 }
+// Fotos de um equipamento (as 4 fotos; cai pra foto única dos cadastros antigos)
+function fotosEquip(e){return (e&&e.fotos&&e.fotos.length)?e.fotos:(e&&e.foto?[e.foto]:[]);}
+function abrirLightboxEquip(id){abrirLightboxLista(fotosEquip(DB.get('equipamentos').find(x=>x.id==id)),0);}
 function atualizarLightbox(){
   const n=_lightboxFotos.length;
   document.getElementById('lightbox-img').src=_lightboxFotos[_lightboxIdx]||'';
@@ -2675,7 +2760,9 @@ function verContrato(id){
     <p style="text-align:center;font-size:11px;color:#999;margin-top:22px" contenteditable="true">${tpl.cidade}, ${fmtData(hoje())}</p>`;
   openModal('modal-ver-contrato');
 }
-function salvarComoPDF(elementId, nomeArquivo){
+// Monta o contrato/fatura num iframe oculto e abre direto o diálogo de impressão.
+// Escolhendo "Salvar como PDF" sai um PDF de verdade (texto selecionável), sem baixar HTML.
+function imprimirDoc(elementId, nomeArquivo){
   const el=document.getElementById(elementId);
   if(!el){alert('Conteúdo não encontrado.');return;}
   const estilos=Array.from(document.querySelectorAll('style')).map(s=>s.textContent).join('\n');
@@ -2691,9 +2778,7 @@ function salvarComoPDF(elementId, nomeArquivo){
 *{margin:0;padding:0;box-sizing:border-box;}
 body{font-family:'DM Sans',Arial,sans-serif;background:#fff;margin:0;padding:24px;}
 ${estilos}
-.btn-print{display:block;margin:0 auto 20px;padding:10px 28px;background:#f5a623;border:none;border-radius:8px;font-size:14px;font-weight:700;cursor:pointer;font-family:Arial,sans-serif;}
 @media print{
-  .btn-print{display:none!important;}
   body{
     padding:0!important;
     margin:0!important;
@@ -2709,23 +2794,42 @@ ${estilos}
 </style>
 </head>
 <body>
-<button class="btn-print" onclick="window.print()">Imprimir / Salvar como PDF</button>
 ${clone.outerHTML}
-<script>
-document.fonts.ready.then(function(){setTimeout(function(){window.print();},400);});
-<\/script>
 </body>
 </html>`;
-  const blob=new Blob([html],{type:'text/html;charset=utf-8'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url;a.download=nomeArquivo+'.html';
-  document.body.appendChild(a);a.click();document.body.removeChild(a);
-  setTimeout(()=>URL.revokeObjectURL(url),5000);
-  setTimeout(()=>alert('Arquivo baixado!\n\nAbra com o Google Chrome (clique direito → Abrir com → Chrome).\nO diálogo de impressão abrirá automaticamente.\nEscolha "Salvar como PDF" ou sua impressora.'),400);
+  // O Chrome usa o título do documento como nome sugerido do PDF
+  const tituloAnterior=document.title;
+  document.title=nomeArquivo;
+  const ifr=document.createElement('iframe');
+  ifr.setAttribute('aria-hidden','true');
+  ifr.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden';
+  let limpo=false;
+  const limpar=()=>{if(limpo)return;limpo=true;document.title=tituloAnterior;setTimeout(()=>{if(ifr.parentNode)ifr.parentNode.removeChild(ifr);},300);};
+  ifr.onload=()=>{
+    try{
+      const w=ifr.contentWindow;
+      w.onafterprint=limpar;
+      // Espera as fontes assentarem, senão imprime com o layout errado
+      const disparar=()=>{try{w.focus();w.print();}catch(e){limpar();abrirDocEmAba(html);}};
+      if(w.document.fonts&&w.document.fonts.ready)w.document.fonts.ready.then(()=>setTimeout(disparar,250));
+      else setTimeout(disparar,400);
+      setTimeout(limpar,60000); // rede de segurança: alguns navegadores não disparam onafterprint
+    }catch(e){limpar();abrirDocEmAba(html);}
+  };
+  document.body.appendChild(ifr);
+  const doc=ifr.contentWindow.document;
+  doc.open();doc.write(html);doc.close();
 }
-function baixarContrato(){const id=document.body.dataset.docAtual||Date.now();salvarComoPDF('contract-content','Contrato '+id);}
-function baixarFatura(){const id=document.body.dataset.docAtual||Date.now();salvarComoPDF('fatura-content','Fatura '+id);}
+// Reserva (Safari/iOS): se o iframe não puder imprimir, abre numa aba que imprime sozinha
+function abrirDocEmAba(html){
+  const w=window.open('','_blank');
+  if(!w){alert('Permita as janelas pop-up para imprimir o documento.');return;}
+  w.document.open();
+  w.document.write(html.replace('</body>','<script>window.onload=function(){setTimeout(function(){window.print();},500);};<\/script></body>'));
+  w.document.close();
+}
+function baixarContrato(){const id=document.body.dataset.docAtual||Date.now();imprimirDoc('contract-content','Contrato '+id);}
+function baixarFatura(){const id=document.body.dataset.docAtual||Date.now();imprimirDoc('fatura-content','Fatura '+id);}
 function uploadLogo(input){const f=input.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{localStorage.setItem('gl_logo',e.target.result);const el=document.querySelector('#contract-content .contract-logo');if(el)el.src=e.target.result;else{const d=document.querySelector('#contract-content > div');if(d)d.insertAdjacentHTML('afterbegin',`<img src="${e.target.result}" class="contract-logo">`)}};r.readAsDataURL(f);}
 function uploadLogoFatura(input){const f=input.files[0];if(!f)return;const r=new FileReader();r.onload=e=>{localStorage.setItem('gl_logo',e.target.result);const el=document.querySelector('#fatura-content .fatura-logo');if(el)el.src=e.target.result;else{const d=document.querySelector('#fatura-content .fatura-header');if(d)d.insertAdjacentHTML('afterbegin',`<img src="${e.target.result}" class="fatura-logo" style="max-height:65px;max-width:130px">`);}};r.readAsDataURL(f);}
 
@@ -3123,6 +3227,22 @@ function renderFinanceiro(){
   // Projeção: monta uma "linha" (cobrança) por ciclo de contrato que cai no mês selecionado
   const linhas=[];
   ct.forEach(c=>{ciclosNoMes(c,mesAtual,hojeYM).forEach(x=>linhas.push(x));});
+  // Busca por cliente + filtro da barra superior. Valem só pra LISTA — os totais
+  // do mês continuam somando tudo, senão o "Faturamento do mês" deixaria de bater.
+  const termoF=(document.getElementById('fin-busca')?.value||'').toLowerCase().trim();
+  const filtroF=document.getElementById('fin-filtro')?.value||'todos';
+  let visiveis=linhas;
+  if(termoF)visiveis=visiveis.filter(x=>{const cl=cls.find(y=>y.id===x.c.clienteId);return !!cl&&((cl.nome||'').toLowerCase().includes(termoF)||(cl.doc||'').includes(termoF));});
+  if(filtroF!=='todos')visiveis=visiveis.filter(x=>{
+    const quit=pgQuitadoMes(x.c,x.refYM);
+    if(filtroF==='pago')return quit;
+    if(filtroF==='aberto')return !quit&&x.c.status!=='cancelado';
+    if(filtroF==='vencido'){if(quit||x.c.status==='cancelado')return false;const f=new Date(x.fim);f.setHours(0,0,0,0);return f<hoje;}
+    if(filtroF==='avulsa')return !!x.c.avulso;
+    if(filtroF==='recorrente')return !x.c.avulso;
+    if(filtroF==='retirada')return !!x.c.paraRetirada;
+    return true;
+  });
   // Totais do mês (com base nos ciclos projetados)
   const total=linhas.reduce((s,x)=>s+pgRecebidoMes(x.c,x.refYM),0);
   const rec=linhas.filter(x=>x.c.status!=='cancelado').reduce((s,x)=>s+pgSaldoMes(x.c,x.refYM),0);
@@ -3138,7 +3258,7 @@ function renderFinanceiro(){
     <div class="stat-card blue"><div class="val">${linhas.length}</div><div class="lbl">Cobranças no mês</div></div>
     <div class="stat-card green"><div class="val">${pagos}</div><div class="lbl">Pagamentos Confirmados</div></div>`;
   const tb=document.getElementById('fin-tbody');
-  if(!linhas.length){tb.innerHTML='<tr><td colspan="8"><div class="empty-state"><p>Nenhuma cobrança neste mês</p></div></td></tr>';return;}
+  if(!visiveis.length){tb.innerHTML=`<tr><td colspan="8"><div class="empty-state"><p>${(termoF||filtroF!=='todos')?'Nenhuma cobrança com esse filtro neste mês':'Nenhuma cobrança neste mês'}</p></div></td></tr>`;return;}
   const fmtDataD=x=>`${String(x.getDate()).padStart(2,'0')}/${String(x.getMonth()+1).padStart(2,'0')}/${x.getFullYear()}`;
   // Monta a linha de uma cobrança (um ciclo de um contrato)
   const linhaHtml=x=>{
@@ -3154,14 +3274,22 @@ function renderFinanceiro(){
     return`<tr data-status="${c.status}"${vencAttr}><td>#${c.id}</td><td>${cl.nome}</td><td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${eqs}">${eqs}</td><td style="white-space:nowrap">${x.periodo}</td><td><b>R$ ${fmtMoney(c.total)}</b></td><td>${fmtDataD(x.fim)}</td><td>${pagCel}</td><td style="white-space:nowrap"><button class="btn btn-primary btn-sm" onclick="abrirPagamentos(${c.id},'${x.refYM}')">Pagamentos</button>${(c.status==='ativo'&&!c.paraRetirada)?` <button class="btn btn-info btn-sm" onclick="abrirDataRetirada(${c.id})">P/ retirada</button>`:''}</td></tr>`;
   };
   // Agrupa por dia do início (dia do ciclo), em ordem
-  const grupos={};
-  linhas.forEach(x=>{const dia=parseInt(x.c.inicio.slice(8,10))||1;(grupos[dia]=grupos[dia]||[]).push(x);});
   const [Y,M]=mesAtual.split('-');
-  let html='';
-  Object.keys(grupos).map(Number).sort((a,b)=>a-b).forEach(dia=>{
-    html+=`<tr class="fin-grupo-data"><td colspan="8" style="background:var(--surface2);font-weight:700;color:var(--text);padding:9px 12px">${dia} de ${MESES_NOMES[parseInt(M)-1]} de ${Y} <span style="font-weight:400;color:var(--muted);font-size:12px">· ${grupos[dia].length} cobrança(s)</span></td></tr>`;
-    grupos[dia].sort((a,b)=>a.c.id-b.c.id).forEach(x=>{html+=linhaHtml(x);});
-  });
+  const gruposHtml=arr=>{
+    const grupos={};
+    arr.forEach(x=>{const dia=parseInt(x.c.inicio.slice(8,10))||1;(grupos[dia]=grupos[dia]||[]).push(x);});
+    let h='';
+    Object.keys(grupos).map(Number).sort((a,b)=>a-b).forEach(dia=>{
+      h+=`<tr class="fin-grupo-data"><td colspan="8" style="background:var(--surface2);font-weight:700;color:var(--text);padding:9px 12px">${dia} de ${MESES_NOMES[parseInt(M)-1]} de ${Y} <span style="font-weight:400;color:var(--muted);font-size:12px">· ${grupos[dia].length} cobrança(s)</span></td></tr>`;
+      grupos[dia].sort((a,b)=>a.c.id-b.c.id).forEach(x=>{h+=linhaHtml(x);});
+    });
+    return h;
+  };
+  // O que está rodando fica em cima; finalizados e cancelados descem pro rodapé
+  const emAndamento=visiveis.filter(x=>x.c.status!=='finalizado'&&x.c.status!=='cancelado');
+  const encerrados=visiveis.filter(x=>x.c.status==='finalizado'||x.c.status==='cancelado');
+  let html=gruposHtml(emAndamento);
+  if(encerrados.length)html+=`<tr><td colspan="8" style="background:#eef1f7;border-top:2px solid var(--border);font-weight:800;color:var(--muted);padding:11px 12px;font-size:12px;letter-spacing:.6px;text-transform:uppercase">Finalizados / cancelados <span style="font-weight:400;text-transform:none;letter-spacing:0">· ${encerrados.length} cobrança(s)</span></td></tr>`+gruposHtml(encerrados);
   tb.innerHTML=html;
 }
 // ---- Pagamentos (parcial / à vista) ----
@@ -3536,6 +3664,7 @@ async function iniciarApp(){
     const u=document.getElementById('logged-user');if(u&&user)u.textContent=user.email;
     renderDashboard();updateBadges();
     setTimeout(applyTableLabels,80);
+    setTimeout(ajustarTopoFixo,80);
     aplicarMascaras();
     document.getElementById('sync-overlay').style.display='none';
   }catch(err){
