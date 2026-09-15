@@ -479,38 +479,39 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
   <div class="brand"><h1>DMP Sistema</h1><p>Sistema de Gestão de Aluguel</p></div>
   <nav>
     <div class="nav-section">Principal</div>
-    <div class="nav-item active" onclick="navTo('dashboard',this)">Dashboard</div>
+    <div class="nav-item active" data-pg="dashboard" onclick="navTo('dashboard',this)">Dashboard</div>
     <div class="nav-section">Cadastros</div>
-    <div class="nav-item" onclick="navTo('equipamentos',this)">Equipamentos</div>
-    <div class="nav-item" onclick="navTo('clientes',this)">Clientes</div>
+    <div class="nav-item" data-pg="equipamentos" onclick="navTo('equipamentos',this)">Equipamentos</div>
+    <div class="nav-item" data-pg="clientes" onclick="navTo('clientes',this)">Clientes</div>
     <div class="nav-section">Operação</div>
-    <div class="nav-item" onclick="navTo('contratos',this)">
+    <div class="nav-item" data-pg="contratos" onclick="navTo('contratos',this)">
       Contratos &amp; Fatura
       <span class="nav-badge" id="badge-contratos">0</span>
     </div>
-    <div class="nav-item" onclick="navTo('entregas',this)">
+    <div class="nav-item" data-pg="entregas" onclick="navTo('entregas',this)">
       Entregas
       <span class="nav-badge red" id="badge-entregas">0</span>
     </div>
-    <div class="nav-item" onclick="navTo('validade',this)">
+    <div class="nav-item" data-pg="validade" onclick="navTo('validade',this)">
       Validade / Vencimentos
       <span class="nav-badge red" id="badge-vencendo">0</span>
     </div>
-    <div class="nav-item" onclick="navTo('retiradas',this)">
+    <div class="nav-item" data-pg="retiradas" onclick="navTo('retiradas',this)">
       Retiradas
       <span class="nav-badge red" id="badge-retiradas">0</span>
     </div>
     <div class="nav-section">Estoque &amp; Financeiro</div>
-    <div class="nav-item" onclick="navTo('estoque',this)">Estoque &amp; Status</div>
-    <div class="nav-item" onclick="navTo('financeiro',this)">Financeiro</div>
+    <div class="nav-item" data-pg="estoque" onclick="navTo('estoque',this)">Estoque &amp; Status</div>
+    <div class="nav-item" data-pg="financeiro" onclick="navTo('financeiro',this)">Financeiro</div>
     <div class="nav-section">Manutenção</div>
-    <div class="nav-item" onclick="navTo('manutencao',this)">
+    <div class="nav-item" data-pg="manutencao" onclick="navTo('manutencao',this)">
       Revisão / Manutenção
       <span class="nav-badge red" id="badge-manut">0</span>
     </div>
     <div class="nav-section">Configurações</div>
-    <div class="nav-item" onclick="navTo('template',this)">Modelos de Contrato e Fatura</div>
-    <div class="nav-item" onclick="navTo('filiais',this)">Filiais</div>
+    <div class="nav-item" data-pg="template" onclick="navTo('template',this)">Modelos de Contrato e Fatura</div>
+    <div class="nav-item" data-pg="filiais" onclick="navTo('filiais',this)">Filiais</div>
+    <div class="nav-item" data-pg="usuarios" onclick="navTo('usuarios',this)">Usuários e Acessos</div>
   </nav>
   <div class="sidebar-footer">
     <div style="color:#5a607a;font-size:11px">v4.0 — Dados salvos na nuvem</div>
@@ -841,6 +842,27 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
     <table><thead><tr><th>Contrato</th><th>Cliente</th><th>Equipamento</th><th>Período</th><th>Valor</th><th>Vencimento</th><th>Pagamento</th><th>Ações</th></tr></thead>
     <tbody id="fin-tbody"></tbody></table>
   </div></div>
+</div>
+
+<!-- USUÁRIOS E ACESSOS -->
+<div class="page" id="page-usuarios">
+  <div class="page-top">
+    <div class="page-header"><h2>Usuários e Acessos</h2><p>Quem entra no sistema e o que cada um enxerga</p></div>
+    <div class="search-row">
+      <input class="search-input" id="usuarios-busca" placeholder="Buscar usuário..." oninput="renderUsuarios()">
+      <button class="btn btn-primary" onclick="abrirNovoUsuario()">+ Novo Usuário</button>
+    </div>
+  </div>
+  <div id="usuarios-aviso"></div>
+  <div class="card"><div class="card-body">
+    <table>
+      <thead><tr><th>Nome</th><th>E-mail</th><th>Acesso</th><th>Situação</th><th>Ações</th></tr></thead>
+      <tbody id="usuarios-tbody"></tbody>
+    </table>
+  </div></div>
+  <p style="font-size:12px;color:var(--muted);margin-top:12px">
+    <b>Operação</b> enxerga Entregas, Retiradas, Estoque &amp; Status e Revisão/Manutenção. <b>Administrador</b> enxerga tudo, menos esta tela — só você, como dono da conta, gerencia os acessos.
+  </p>
 </div>
 
 
@@ -1236,6 +1258,32 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
   </div>
 </div>
 
+<!-- NOVO USUÁRIO -->
+<div class="modal-overlay" id="modal-usuario">
+  <div class="modal" style="max-width:480px">
+    <div class="modal-header"><h3>Novo usuário</h3><button class="modal-close" onclick="closeModal('modal-usuario')">×</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="form-group full"><label>NOME</label><input id="usuario-nome" placeholder="Nome da pessoa"></div>
+        <div class="form-group full"><label>E-MAIL</label><input id="usuario-email" type="email" placeholder="email@exemplo.com" autocomplete="off"></div>
+        <div class="form-group full"><label>SENHA</label><input id="usuario-senha" type="text" placeholder="Mínimo 6 caracteres" autocomplete="new-password"></div>
+        <div class="form-group full"><label>ACESSO</label>
+          <select id="usuario-papel">
+            <option value="operacao">Operação — entregas, retiradas, estoque e manutenção</option>
+            <option value="admin">Administrador — todas as abas</option>
+          </select>
+        </div>
+      </div>
+      <div id="usuario-erro" class="alert alert-danger" style="display:none;margin-top:10px"></div>
+      <p style="font-size:12px;color:var(--muted);margin-top:10px">A pessoa entra com esse e-mail e senha na tela de login. <b>Anote a senha</b> — ela não fica visível depois.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('modal-usuario')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-criar-usuario" onclick="criarUsuario()">Criar usuário</button>
+    </div>
+  </div>
+</div>
+
 <!-- FOTO DA ENTREGA -->
 <div class="modal-overlay" id="modal-foto-entrega">
   <div class="modal" style="max-width:520px">
@@ -1317,7 +1365,8 @@ async function flushToCloud(table){
   try{
     if(table==='template'){
       const {data:{user}}=await sb.auth.getUser();
-      const row={user_id:user.id,...TPL_TODB(_cache.template||{}),updated_at:new Date().toISOString()};
+      // O template é da CONTA (do dono), não de quem está logado — senão cada funcionário criaria o seu
+      const row={user_id:_conta||user.id,...TPL_TODB(_cache.template||{}),updated_at:new Date().toISOString()};
       const {error}=await sb.from('template').upsert(row,{onConflict:'user_id'});
       if(error)throw error;
     }else{
@@ -1358,6 +1407,7 @@ async function loadAllFromCloud(){
 
 // Cria os dados-semente caso a conta esteja totalmente vazia (primeiro login)
 async function seedIfEmpty(){
+  if(!ehDono())return; // só o dono semeia: um funcionário nunca deve criar dados de exemplo
   if(_cache.equipamentos.length>0)return;
   _cache.equipamentos=[
     {id:1,nome:'Andaime Tubular',cat:'Andaimes',qty:50,emUso:0,manutencao:0,diario:15,semanal:80,mensal:250,unidade:'m²',status:'disponivel',desc:'Andaime tubular galvanizado'},
@@ -1393,11 +1443,12 @@ const TPL_DEF={
 // NAV
 // ========================
 function navTo(pg,el){
+  if(!podeVer(pg))return; // papel sem acesso a esta aba
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
   document.getElementById('page-'+pg).classList.add('active');
   if(el)el.classList.add('active');
-  ({dashboard:renderDashboard,equipamentos:renderEquipamentos,clientes:renderClientes,contratos:renderContratos,validade:renderValidade,entregas:renderEntregas,retiradas:renderRetiradas,manutencao:renderManutencao,template:renderTemplate,estoque:renderEstoque,financeiro:renderFinanceiro,filiais:renderFiliais})[pg]?.();
+  ({dashboard:renderDashboard,equipamentos:renderEquipamentos,clientes:renderClientes,contratos:renderContratos,validade:renderValidade,entregas:renderEntregas,retiradas:renderRetiradas,manutencao:renderManutencao,template:renderTemplate,estoque:renderEstoque,financeiro:renderFinanceiro,filiais:renderFiliais,usuarios:renderUsuarios})[pg]?.();
   // Fecha o menu lateral ao trocar de página no celular
   if(window.innerWidth<=768)toggleSidebar(false);
   // Aplica rótulos nas células das tabelas (pra ficarem legíveis no celular)
@@ -3706,6 +3757,132 @@ function aplicarMascaras(){
 }
 
 // ========================
+// USUÁRIOS E ACESSOS
+// ========================
+// _perfil = quem está logado; _conta = de quem são os dados (o dono).
+// Enquanto a tabela `perfis` não existir (ou não houver linha), assume dono único com
+// acesso total — o sistema funciona exatamente como antes da migração.
+let _perfil=null,_conta=null;
+const ABAS_PAPEL={admin:'*',operacao:['entregas','retiradas','estoque','manutencao']};
+async function carregarPerfil(user){
+  _perfil={user_id:user.id,dono_id:user.id,nome:'',email:user.email,papel:'admin',ativo:true};
+  _conta=user.id;
+  try{
+    const {data,error}=await sb.from('perfis').select('*').eq('user_id',user.id).maybeSingle();
+    if(!error&&data){_perfil=data;_conta=data.dono_id;}
+  }catch(e){console.warn('[perfis] indisponivel:',e.message||e);}
+}
+function ehDono(){return !!_perfil&&_perfil.user_id===_perfil.dono_id;}
+function podeVer(pg){
+  if(pg==='usuarios')return ehDono();
+  const abas=ABAS_PAPEL[_perfil?_perfil.papel:'admin'];
+  return abas==='*'||(abas||[]).includes(pg);
+}
+// Esconde do menu o que o papel não alcança (e as seções que ficarem sem itens)
+function aplicarPermissoes(){
+  document.querySelectorAll('.nav-item[data-pg]').forEach(n=>{n.style.display=podeVer(n.dataset.pg)?'':'none';});
+  document.querySelectorAll('.nav-section').forEach(s=>{
+    let vazia=true;
+    for(let el=s.nextElementSibling;el&&!el.classList.contains('nav-section');el=el.nextElementSibling){
+      if(el.classList.contains('nav-item')&&el.style.display!=='none'){vazia=false;break;}
+    }
+    s.style.display=vazia?'none':'';
+  });
+  // Quem não vê o Dashboard (a página que abre por padrão) cai na primeira aba permitida
+  const atual=document.querySelector('.page.active');
+  const pgAtual=atual?atual.id.replace('page-',''):'';
+  if(!podeVer(pgAtual)){
+    const primeiro=[...document.querySelectorAll('.nav-item[data-pg]')].find(n=>n.style.display!=='none');
+    if(primeiro)navTo(primeiro.dataset.pg,primeiro);
+  }
+}
+// ---- Painel de usuários (só o dono chega aqui) ----
+function renderUsuarios(){
+  const tb=document.getElementById('usuarios-tbody');if(!tb)return;
+  const av=document.getElementById('usuarios-aviso');
+  const q=(document.getElementById('usuarios-busca')?.value||'').toLowerCase().trim();
+  sb.from('perfis').select('*').order('criado_em',{ascending:true}).then(({data,error})=>{
+    if(error){
+      av.innerHTML=`<div class="alert alert-warning" style="margin-bottom:14px">O controle de usuários ainda não foi ativado no banco — rode a migração descrita no CLAUDE.md e recarregue a página.<br><span style="font-size:11px;opacity:.75">${error.message}</span></div>`;
+      tb.innerHTML='<tr><td colspan="5"><div class="empty-state"><p>Indisponível</p></div></td></tr>';
+      return;
+    }
+    av.innerHTML='';
+    let lista=data||[];
+    if(q)lista=lista.filter(p=>(p.nome||'').toLowerCase().includes(q)||(p.email||'').toLowerCase().includes(q));
+    if(!lista.length){tb.innerHTML='<tr><td colspan="5"><div class="empty-state"><p>Nenhum usuário cadastrado além de você</p></div></td></tr>';return;}
+    tb.innerHTML=lista.map(p=>{
+      const dono=p.user_id===p.dono_id;
+      return`<tr>
+        <td><b>${p.nome||'—'}</b>${dono?' <span class="badge badge-blue">Dono</span>':''}</td>
+        <td>${p.email||'—'}</td>
+        <td>${dono?'<span class="badge badge-green">Acesso total</span>':`<select class="status-select" onchange="salvarPapelUsuario('${p.user_id}',this.value)">
+            <option value="operacao"${p.papel==='operacao'?' selected':''}>Operação</option>
+            <option value="admin"${p.papel==='admin'?' selected':''}>Administrador</option>
+          </select>`}</td>
+        <td>${dono?'—':(p.ativo?'<span class="badge badge-green">Ativo</span>':'<span class="badge badge-red">Inativo</span>')}</td>
+        <td style="white-space:nowrap">${dono?'':`<button class="btn btn-ghost btn-sm" onclick="alternarAtivoUsuario('${p.user_id}',${p.ativo?'false':'true'})">${p.ativo?'Desativar':'Reativar'}</button>
+          <button class="btn btn-danger btn-sm" onclick="removerAcessoUsuario('${p.user_id}')">Remover acesso</button>`}</td>
+      </tr>`;
+    }).join('');
+  });
+}
+function salvarPapelUsuario(uid,papel){
+  sb.from('perfis').update({papel}).eq('user_id',uid).then(({error})=>{
+    if(error)alert('Não foi possível alterar o acesso: '+error.message);else showSync('✓ Acesso atualizado');
+    renderUsuarios();
+  });
+}
+function alternarAtivoUsuario(uid,ativo){
+  sb.from('perfis').update({ativo}).eq('user_id',uid).then(({error})=>{
+    if(error)alert('Não foi possível alterar: '+error.message);else showSync(ativo?'✓ Usuário reativado':'✓ Usuário desativado');
+    renderUsuarios();
+  });
+}
+function removerAcessoUsuario(uid){
+  confirmar('Remover o acesso desta pessoa? O login continua existindo, mas ela deixa de enxergar os dados da empresa.',()=>{
+    sb.from('perfis').delete().eq('user_id',uid).then(({error})=>{
+      if(error)alert('Não foi possível remover: '+error.message);else showSync('✓ Acesso removido');
+      renderUsuarios();
+    });
+  });
+}
+function abrirNovoUsuario(){
+  ['usuario-nome','usuario-email','usuario-senha'].forEach(i=>document.getElementById(i).value='');
+  document.getElementById('usuario-papel').value='operacao';
+  const e=document.getElementById('usuario-erro');e.style.display='none';e.textContent='';
+  openModal('modal-usuario');
+}
+async function criarUsuario(){
+  const nome=document.getElementById('usuario-nome').value.trim();
+  const email=document.getElementById('usuario-email').value.trim();
+  const senha=document.getElementById('usuario-senha').value;
+  const papel=document.getElementById('usuario-papel').value;
+  const err=document.getElementById('usuario-erro');
+  const btn=document.getElementById('btn-criar-usuario');
+  const falhar=msg=>{err.textContent=msg;err.style.display='';btn.disabled=false;btn.textContent='Criar usuário';};
+  err.style.display='none';
+  if(!nome||!email||(senha||'').length<6){falhar('Preencha nome, e-mail e uma senha de pelo menos 6 caracteres.');return;}
+  btn.disabled=true;btn.textContent='Criando...';
+  try{
+    // Sem a tabela `perfis`, o login seria criado e ficaria órfão (entraria numa conta
+    // vazia e semearia dados de exemplo). Confere ANTES de criar qualquer coisa.
+    const {error:eTab}=await sb.from('perfis').select('user_id').limit(1);
+    if(eTab){falhar('O controle de usuários ainda não foi ativado no banco. Rode a migração antes de criar logins.');return;}
+    // Client separado e SEM persistência: criar o login não derruba a sessão de quem está usando o sistema
+    const sbAux=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false}});
+    const {data,error}=await sbAux.auth.signUp({email,password:senha});
+    if(error){falhar(error.message);return;}
+    const novoId=data&&data.user&&data.user.id;
+    if(!novoId){falhar('O login foi criado, mas o Supabase não devolveu o id. Confira em Authentication e cadastre o acesso manualmente.');return;}
+    const {error:e2}=await sb.from('perfis').insert({user_id:novoId,dono_id:_conta,nome,email,papel,ativo:true});
+    if(e2){falhar('Login criado, mas não consegui salvar o acesso: '+e2.message);return;}
+    btn.disabled=false;btn.textContent='Criar usuário';
+    closeModal('modal-usuario');showSync('✓ Usuário criado');renderUsuarios();
+  }catch(e){falhar(e.message||String(e));}
+}
+
+// ========================
 // AUTH / BOOT
 // ========================
 async function fazerLogin(){
@@ -3739,12 +3916,16 @@ async function iniciarApp(){
   document.getElementById('sync-overlay').style.display='flex';
   document.getElementById('sync-text').textContent='Carregando seus dados...';
   try{
+    // O perfil vem primeiro: define de quem são os dados (_conta) e o que este login enxerga
+    const {data:{user}}=await sb.auth.getUser();
+    if(user)await carregarPerfil(user);
     await loadAllFromCloud();
     await seedIfEmpty();
     recalcularEmUso(); // reconcilia "em uso" com os contratos a cada carga (auto-corrige defasagens)
-    const {data:{user}}=await sb.auth.getUser();
-    const u=document.getElementById('logged-user');if(u&&user)u.textContent=user.email;
+    const u=document.getElementById('logged-user');
+    if(u&&user)u.textContent=user.email+(ehDono()?'':' · '+(_perfil.papel==='admin'?'Administrador':'Operação'));
     renderDashboard();updateBadges();
+    aplicarPermissoes();
     setTimeout(applyTableLabels,80);
     setTimeout(ajustarTopoFixo,80);
     aplicarMascaras();
