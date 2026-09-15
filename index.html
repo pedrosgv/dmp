@@ -537,7 +537,7 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
     <div class="page-header"><h2>Equipamentos</h2><p>Catálogo e gestão dos equipamentos para aluguel</p></div>
     <div class="search-row">
       <input class="search-input" placeholder="Buscar equipamento..." oninput="renderEquipamentos(this.value)">
-      <button class="btn btn-primary" onclick="popularGruposDatalist();openModal('modal-equip')">+ Novo Equipamento</button>
+      <button class="btn btn-primary" onclick="resetEquipForm();openModal('modal-equip')">+ Novo Equipamento</button>
     </div>
   </div>
   <div class="equip-grid" id="equip-grid"></div>
@@ -814,7 +814,7 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
       <button class="btn btn-ghost btn-sm" onclick="finNavMes(1)" title="Mês anterior">←</button>
       <select class="search-input" id="fin-mes-seletor" style="flex:0 0 auto;max-width:190px" onchange="renderFinanceiro()"></select>
       <button class="btn btn-ghost btn-sm" onclick="finNavMes(-1)" title="Próximo mês">→</button>
-      <input class="search-input" id="fin-busca" style="min-width:160px" placeholder="Buscar cliente..." oninput="renderFinanceiro()">
+      <input class="search-input" id="fin-busca" style="min-width:160px" placeholder="Buscar cliente ou endereço..." oninput="renderFinanceiro()">
       <select class="search-input" id="fin-filtro" style="flex:0 0 auto;max-width:215px" onchange="renderFinanceiro()">
         <option value="todos">Todas as cobranças</option>
         <option value="aberto">Somente em aberto</option>
@@ -1226,6 +1226,24 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
   </div>
 </div>
 
+<!-- FOTO DA ENTREGA -->
+<div class="modal-overlay" id="modal-foto-entrega">
+  <div class="modal" style="max-width:520px">
+    <div class="modal-header"><h3 id="foto-entrega-titulo">Registrar entrega</h3><button class="modal-close" onclick="closeModal('modal-foto-entrega')">×</button></div>
+    <div class="modal-body">
+      <p id="foto-entrega-sub" style="color:var(--muted);font-size:13px;margin:0 0 12px"></p>
+      <div id="foto-entrega-preview"></div>
+      <input type="file" id="foto-entrega-camera" accept="image/*" capture="environment" style="display:none" onchange="carregarFotoEntrega(event)">
+      <input type="file" id="foto-entrega-arquivo" accept="image/*" style="display:none" onchange="carregarFotoEntrega(event)">
+      <div style="display:flex;gap:9px;margin-top:12px;flex-wrap:wrap">
+        <button class="btn btn-ghost" onclick="document.getElementById('foto-entrega-camera').click()">📷 Tirar foto</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('foto-entrega-arquivo').click()">📁 Escolher arquivo</button>
+      </div>
+    </div>
+    <div class="modal-footer" id="foto-entrega-acoes"></div>
+  </div>
+</div>
+
 <!-- Menu de ações do contrato (☰) -->
 <div id="contrato-menu" style="display:none;position:fixed;z-index:300;background:var(--surface);border:1px solid var(--border);border-radius:10px;box-shadow:0 12px 30px rgba(15,23,42,.18);padding:6px;min-width:190px"></div>
 
@@ -1241,7 +1259,7 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY,{auth:{persistSess
 const FIELD_MAP={
   equipamentos:{toDb:o=>({id:o.id,nome:o.nome,cat:o.cat,qty:o.qty,em_uso:o.emUso||0,manutencao:o.manutencao||0,diario:o.diario,semanal:o.semanal,quinzenal:o.quinzenal||0,mensal:o.mensal,unidade:o.unidade,status:o.status,descricao:o.desc||'',grupo:o.grupo||null,tipo_controle:o.tipoControle||'quantidade',componentes:o.componentes||[],foto:o.foto||null,fotos:o.fotos||[]}),fromDb:r=>({id:r.id,nome:r.nome,cat:r.cat,qty:r.qty,emUso:r.em_uso,manutencao:r.manutencao,diario:Number(r.diario),semanal:Number(r.semanal),quinzenal:Number(r.quinzenal||0),mensal:Number(r.mensal),unidade:r.unidade,status:r.status,desc:r.descricao||'',grupo:r.grupo||'',tipoControle:r.tipo_controle||'quantidade',componentes:r.componentes||[],foto:r.foto||'',fotos:r.fotos||[]})},
   clientes:{toDb:o=>({id:o.id,nome:o.nome,tipo:o.tipo,doc:o.doc,rg:o.rg,tel:o.tel,telefones:o.telefones||[],email:o.email,endereco:o.end,obs:o.obs,debitos:o.debitos||[]}),fromDb:r=>({id:r.id,nome:r.nome,tipo:r.tipo,doc:r.doc,rg:r.rg,tel:r.tel,telefones:r.telefones||[],email:r.email,end:r.endereco,obs:r.obs,debitos:r.debitos||[]})},
-  contratos:{toDb:o=>({id:o.id,cliente_id:o.clienteId,inicio:o.inicio,fim:o.fim||null,pagamento:o.pagamento,status:o.status,local:o.local,itens:o.itens||[],total:o.total||0,desconto:o.desconto||0,frete:o.frete||0,pago:!!o.pago,pagamentos:o.pagamentos||[],obs:o.obs,para_retirada:!!o.paraRetirada,renovado_de:o.renovadoDe||null,filial_id:o.filialId||null,sem_estoque:!!o.semEstoque,avulso:!!o.avulso,paga_em:o.pagaEm||'mesmo',movimentacoes:o.movimentacoes||[],finalizado_em:o.finalizadoEm||null,vencidos_manuais:o.vencidosManuais||[],data_retirada:o.dataRetirada||null}),fromDb:r=>({id:r.id,clienteId:r.cliente_id,inicio:r.inicio,fim:r.fim,pagamento:r.pagamento,status:r.status,local:r.local,itens:r.itens||[],total:Number(r.total),desconto:Number(r.desconto||0),frete:Number(r.frete||0),pago:r.pago,pagamentos:r.pagamentos||[],obs:r.obs,criadoEm:r.created_at,paraRetirada:!!r.para_retirada,renovadoDe:r.renovado_de,filialId:r.filial_id,semEstoque:!!r.sem_estoque,avulso:!!r.avulso,pagaEm:r.paga_em||'mesmo',movimentacoes:r.movimentacoes||[],finalizadoEm:r.finalizado_em||null,vencidosManuais:r.vencidos_manuais||[],dataRetirada:r.data_retirada||null})},
+  contratos:{toDb:o=>({id:o.id,cliente_id:o.clienteId,inicio:o.inicio,fim:o.fim||null,pagamento:o.pagamento,status:o.status,local:o.local,itens:o.itens||[],total:o.total||0,desconto:o.desconto||0,frete:o.frete||0,pago:!!o.pago,pagamentos:o.pagamentos||[],obs:o.obs,para_retirada:!!o.paraRetirada,renovado_de:o.renovadoDe||null,filial_id:o.filialId||null,sem_estoque:!!o.semEstoque,avulso:!!o.avulso,paga_em:o.pagaEm||'mesmo',movimentacoes:o.movimentacoes||[],finalizado_em:o.finalizadoEm||null,vencidos_manuais:o.vencidosManuais||[],data_retirada:o.dataRetirada||null,foto_entrega:o.fotoEntrega||null}),fromDb:r=>({id:r.id,clienteId:r.cliente_id,inicio:r.inicio,fim:r.fim,pagamento:r.pagamento,status:r.status,local:r.local,itens:r.itens||[],total:Number(r.total),desconto:Number(r.desconto||0),frete:Number(r.frete||0),pago:r.pago,pagamentos:r.pagamentos||[],obs:r.obs,criadoEm:r.created_at,paraRetirada:!!r.para_retirada,renovadoDe:r.renovado_de,filialId:r.filial_id,semEstoque:!!r.sem_estoque,avulso:!!r.avulso,pagaEm:r.paga_em||'mesmo',movimentacoes:r.movimentacoes||[],finalizadoEm:r.finalizado_em||null,vencidosManuais:r.vencidos_manuais||[],dataRetirada:r.data_retirada||null,fotoEntrega:r.foto_entrega||''})},
   manutencoes:{toDb:o=>({id:o.id,equip_id:o.equipId,data:o.data,tipo:o.tipo,valor:o.valor||0,responsavel:o.resp,descricao:o.desc,revisao_concluida:!!o.revisaoConcluida,itens_feitos:o.itensFeitos||[]}),fromDb:r=>({id:r.id,equipId:r.equip_id,data:r.data,tipo:r.tipo,valor:Number(r.valor),resp:r.responsavel,desc:r.descricao,revisaoConcluida:r.revisao_concluida,itensFeitos:r.itens_feitos||[]})},
   filiais:{toDb:o=>({id:o.id,nome:o.nome,cnpj:o.cnpj||null,endereco:o.endereco||null,telefone:o.telefone||null,email:o.email||null}),fromDb:r=>({id:r.id,nome:r.nome,cnpj:r.cnpj||'',endereco:r.endereco||'',telefone:r.telefone||'',email:r.email||''})},
 };
@@ -2024,9 +2042,11 @@ function abrirMenuContrato(ev,id){
   ev.stopPropagation();
   const m=document.getElementById('contrato-menu');
   const opt=(label,fn,danger)=>`<button class="btn btn-ghost btn-sm" style="width:100%;justify-content:flex-start;${danger?'color:var(--danger)':''}" onclick="fecharMenuContrato();${fn}">${label}</button>`;
+  const ctm=DB.get('contratos').find(x=>x.id==id)||{};
   m.innerHTML=[
     opt('📄 Contrato',`verContrato(${id})`),
     opt('🧾 Fatura',`verFatura(${id})`),
+    opt(ctm.fotoEntrega?'📷 Foto da entrega':'📷 Registrar foto da entrega',`abrirFotoEntrega(${id},'ver')`),
     opt('✏️ Editar',`editarContrato(${id})`),
     opt('🔄 Renovar',`abrirRenovar(${id})`),
     opt('🗑️ Excluir',`delContratoConfirm(${id})`,true)
@@ -2140,9 +2160,54 @@ function rerenderPaginaAtiva(){
   else if(id==='page-dashboard')renderDashboard();
 }
 // Entrega feita: contrato pendente (agendado) vira ativo (em locação)
-function marcarEntregue(id){
-  DB.set('contratos',DB.get('contratos').map(c=>c.id==id?{...c,status:'ativo'}:c));
-  recalcularEmUso();rerenderPaginaAtiva();
+// Entregar passa pelo registro da foto (dá pra seguir sem ela)
+function marcarEntregue(id){abrirFotoEntrega(id,'entrega');}
+
+// ---- FOTO DA ENTREGA ----
+// modo 'entrega' = confirmando a entrega agora; 'ver' = consultando/trocando depois (menu ☰)
+let _entregaId=null,_entregaFoto='',_entregaModo='entrega';
+function abrirFotoEntrega(id,modo){
+  const c=DB.get('contratos').find(x=>x.id==id);if(!c)return;
+  _entregaId=id;_entregaModo=modo||'entrega';_entregaFoto=c.fotoEntrega||'';
+  const cl=DB.get('clientes').find(x=>x.id===c.clienteId)||{nome:'—'};
+  document.getElementById('foto-entrega-titulo').textContent=(_entregaModo==='entrega'?'Registrar entrega':'Foto da entrega')+' — #'+id;
+  document.getElementById('foto-entrega-sub').textContent=cl.nome+(c.local?' · '+c.local:'');
+  renderFotoEntrega();
+  openModal('modal-foto-entrega');
+}
+function renderFotoEntrega(){
+  const pv=document.getElementById('foto-entrega-preview');
+  pv.innerHTML=_entregaFoto
+    ?`<img src="${_entregaFoto}" onclick="abrirLightboxLista([_entregaFoto],0)" title="Clique para ampliar" style="width:100%;max-height:320px;object-fit:contain;border-radius:10px;border:1px solid var(--border);background:var(--surface2);cursor:zoom-in">`
+    :'<div style="border:1px dashed var(--border);border-radius:10px;padding:26px;text-align:center;color:var(--muted);font-size:13px;background:var(--surface2)">Nenhuma foto registrada</div>';
+  const semFoto=_entregaFoto?'':' disabled style="opacity:.5;cursor:not-allowed"';
+  document.getElementById('foto-entrega-acoes').innerHTML=_entregaModo==='entrega'
+    ?`<button class="btn btn-ghost" onclick="closeModal('modal-foto-entrega')">Cancelar</button>
+      <button class="btn btn-warning" onclick="confirmarEntrega(false)">Marcar sem foto</button>
+      <button class="btn btn-success" onclick="confirmarEntrega(true)"${semFoto}>Confirmar entrega</button>`
+    :`<button class="btn btn-ghost" onclick="closeModal('modal-foto-entrega')">Fechar</button>
+      ${_entregaFoto?'<button class="btn btn-danger" onclick="removerFotoEntrega()">Remover foto</button>':''}
+      <button class="btn btn-primary" onclick="salvarFotoEntrega()"${semFoto}>Salvar foto</button>`;
+}
+function carregarFotoEntrega(ev){
+  const f=ev.target.files[0];ev.target.value='';
+  if(!f)return;
+  comprimirImagem(f,600,0.55,src=>{_entregaFoto=src;renderFotoEntrega();});
+}
+// Confirma a entrega: status vira ativo, igual ao comportamento antigo do botão
+function confirmarEntrega(comFoto){
+  DB.set('contratos',DB.get('contratos').map(c=>c.id==_entregaId?{...c,status:'ativo',fotoEntrega:comFoto?_entregaFoto:(c.fotoEntrega||'')}:c));
+  recalcularEmUso();closeModal('modal-foto-entrega');rerenderPaginaAtiva();
+}
+function salvarFotoEntrega(){
+  DB.set('contratos',DB.get('contratos').map(c=>c.id==_entregaId?{...c,fotoEntrega:_entregaFoto}:c));
+  closeModal('modal-foto-entrega');rerenderPaginaAtiva();
+}
+function removerFotoEntrega(){
+  confirmar('Remover a foto da entrega deste contrato?',()=>{
+    DB.set('contratos',DB.get('contratos').map(c=>c.id==_entregaId?{...c,fotoEntrega:''}:c));
+    _entregaFoto='';renderFotoEntrega();rerenderPaginaAtiva();
+  });
 }
 // Retirada/devolução feita: contrato vira finalizado e libera o estoque
 function marcarRetirado(id){
@@ -2686,26 +2751,31 @@ document.addEventListener('keydown',e=>{
   else if(e.key==='Escape')fecharLightbox();
 });
 // Lê as fotos escolhidas, redimensiona (máx 700px) e comprime pra não pesar (limite de 4)
+// Lê a imagem escolhida, reduz o lado maior pra `max` e comprime em JPEG.
+// Usada pelas fotos do equipamento (700px/0.7) e pela foto da entrega (600px/0.55).
+function comprimirImagem(file,max,qualidade,cb){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const img=new Image();
+    img.onload=()=>{
+      let w=img.width,h=img.height;
+      if(w>h&&w>max){h=Math.round(h*max/w);w=max;}
+      else if(h>=w&&h>max){w=Math.round(w*max/h);h=max;}
+      const cv=document.createElement('canvas');cv.width=w;cv.height=h;
+      cv.getContext('2d').drawImage(img,0,0,w,h);
+      cb(cv.toDataURL('image/jpeg',qualidade));
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
 function carregarFotoEquip(ev){
   const files=[...ev.target.files];ev.target.value='';
-  files.forEach(file=>{
-    const reader=new FileReader();
-    reader.onload=e=>{
-      const img=new Image();
-      img.onload=()=>{
-        if(_infoFotos.length>=4){renderFotosGrid();return;}
-        const max=700;let w=img.width,h=img.height;
-        if(w>h&&w>max){h=Math.round(h*max/w);w=max;}
-        else if(h>=w&&h>max){w=Math.round(w*max/h);h=max;}
-        const cv=document.createElement('canvas');cv.width=w;cv.height=h;
-        cv.getContext('2d').drawImage(img,0,0,w,h);
-        _infoFotos.push(cv.toDataURL('image/jpeg',0.7));
-        renderFotosGrid();
-      };
-      img.src=e.target.result;
-    };
-    reader.readAsDataURL(file);
-  });
+  files.forEach(file=>comprimirImagem(file,700,0.7,src=>{
+    if(_infoFotos.length>=4){renderFotosGrid();return;}
+    _infoFotos.push(src);
+    renderFotosGrid();
+  }));
 }
 
 // ========================
@@ -3232,7 +3302,7 @@ function renderFinanceiro(){
   const termoF=(document.getElementById('fin-busca')?.value||'').toLowerCase().trim();
   const filtroF=document.getElementById('fin-filtro')?.value||'todos';
   let visiveis=linhas;
-  if(termoF)visiveis=visiveis.filter(x=>{const cl=cls.find(y=>y.id===x.c.clienteId);return !!cl&&((cl.nome||'').toLowerCase().includes(termoF)||(cl.doc||'').includes(termoF));});
+  if(termoF)visiveis=visiveis.filter(x=>{const cl=cls.find(y=>y.id===x.c.clienteId)||{};return (cl.nome||'').toLowerCase().includes(termoF)||(cl.doc||'').includes(termoF)||(x.c.local||'').toLowerCase().includes(termoF);});
   if(filtroF!=='todos')visiveis=visiveis.filter(x=>{
     const quit=pgQuitadoMes(x.c,x.refYM);
     if(filtroF==='pago')return quit;
@@ -3271,7 +3341,7 @@ function renderFinanceiro(){
     else if(receb>0)pagCel=`<span class="badge badge-blue">Parcial</span><div style="font-size:11px;color:var(--muted);margin-top:3px">R$ ${fmtMoney(receb)} / ${fmtMoney(c.total)} · falta R$ ${fmtMoney(saldo)}</div>`;
     else pagCel='<span class="badge badge-orange">Pendente</span>';
     const eqs=(c.itens||[]).map(it=>{const e=eq.find(y=>y.id==it.equipId);return e?`${e.nome} (${it.qty})`:'—';}).join(', ')||'—';
-    return`<tr data-status="${c.status}"${vencAttr}><td>#${c.id}</td><td>${cl.nome}</td><td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${eqs}">${eqs}</td><td style="white-space:nowrap">${x.periodo}</td><td><b>R$ ${fmtMoney(c.total)}</b></td><td>${fmtDataD(x.fim)}</td><td>${pagCel}</td><td style="white-space:nowrap"><button class="btn btn-primary btn-sm" onclick="abrirPagamentos(${c.id},'${x.refYM}')">Pagamentos</button>${(c.status==='ativo'&&!c.paraRetirada)?` <button class="btn btn-info btn-sm" onclick="abrirDataRetirada(${c.id})">P/ retirada</button>`:''}</td></tr>`;
+    return`<tr data-status="${c.status}"${vencAttr}><td>#${c.id}</td><td>${cl.nome}${c.local?`<br><span style="font-size:11px;color:var(--muted)">${c.local}</span>`:''}</td><td style="max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${eqs}">${eqs}</td><td style="white-space:nowrap">${x.periodo}</td><td><b>R$ ${fmtMoney(c.total)}</b></td><td>${fmtDataD(x.fim)}</td><td>${pagCel}</td><td style="white-space:nowrap"><button class="btn btn-primary btn-sm" onclick="abrirPagamentos(${c.id},'${x.refYM}')">Pagamentos</button>${(c.status==='ativo'&&!c.paraRetirada)?` <button class="btn btn-info btn-sm" onclick="abrirDataRetirada(${c.id})">P/ retirada</button>`:''}</td></tr>`;
   };
   // Agrupa por dia do início (dia do ciclo), em ordem
   const [Y,M]=mesAtual.split('-');
