@@ -257,7 +257,7 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
 .fv-cli{display:grid;grid-template-columns:1.4fr 1fr;gap:1px 14px;padding:5px 0;border-bottom:1px solid #bbb;}
 .fv-cli b{font-weight:700;}
 .fv-cli span{color:#555;}
-.fv-itens-wrap{display:grid;grid-template-columns:1fr;gap:0 14px;flex:1 1 auto;min-height:0;overflow:hidden;}
+.fv-itens-wrap{display:grid;grid-template-columns:1fr;gap:0 14px;flex:0 1 auto;min-height:0;overflow:hidden;}
 .fv-itens-wrap.fv-2col{grid-template-columns:1fr 1fr;}
 .fv-itens{width:100%;border-collapse:collapse;margin-top:4px;font-size:inherit;align-self:start;}
 .fv-itens th{text-align:left;font-size:8.5px;text-transform:uppercase;letter-spacing:1px;color:#555;border-bottom:1px solid #111;padding:2px 0;}
@@ -266,7 +266,7 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
 .fv-itens .p{width:16%;color:#444;font-weight:500;}
 .fv-itens .v{width:18%;text-align:right;font-variant-numeric:tabular-nums;}
 .fv-topo,.fv-cli,.fv-resumo,.fv-termos,.fv-ass{flex-shrink:0;}
-.fv-resumo{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-top:auto;padding-top:5px;border-top:1px solid #bbb;}
+.fv-resumo{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-top:8px;padding-top:5px;border-top:1px solid #bbb;}
 .fv-resumo-dados{line-height:1.5;}
 .fv-resumo-dados span{color:#555;}
 .fv-total{text-align:right;line-height:1.4;}
@@ -274,7 +274,9 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
 .fv-total-final{font-size:15px;font-weight:700;font-family:Arial,sans-serif;font-variant-numeric:tabular-nums;}
 .fv-termos{font-size:8.3px;line-height:1.3;color:#222;margin-top:4px;text-align:justify;}
 .fv-termos b{font-size:8.6px;}
-.fv-ass{display:flex;gap:40px;margin-top:22px;padding:0 6px;font-size:8.5px;color:#444;text-align:center;}
+/* Espaço da assinatura: 40px quando sobra folha (poucos itens), encolhe até 22px quando a lista é longa */
+.fv-ass-espaco{flex:0 100 40px;min-height:22px;}
+.fv-ass{display:flex;gap:40px;padding:0 6px;font-size:8.5px;color:#444;text-align:center;}
 .fv-ass div{flex:1;border-top:1px solid #111;padding-top:2px;}
 .fv-folha.fv-compacta .fv-via{font-size:9.5px;line-height:1.25;}
 .fv-folha.fv-compacta .fv-itens td{padding:0;line-height:1.2;}
@@ -3201,6 +3203,7 @@ function viaFaturaHTML(c,cl,tpl,via){
       </div>
     </div>
     <div class="fv-termos" contenteditable="true">${FV_TERMOS}</div>
+    <div class="fv-ass-espaco"></div>
     <div class="fv-ass"><div>${tpl.empresaNome||'Locadora'}</div><div>Cliente — ${cl.nome||''}</div></div>
   </div>`;
 }
