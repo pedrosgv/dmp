@@ -240,7 +240,7 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
 .fatura-rodape-grid{display:grid;grid-template-columns:1fr auto;gap:24px;align-items:start;}
 /* Fatura em 2 vias (A4 cortada ao meio) */
 .fv-folha{background:#fff;color:#111;font-family:'DM Sans',Arial,sans-serif;width:190mm;height:276mm;margin:0 auto;display:flex;flex-direction:column;}
-.fv-via{height:50%;overflow:hidden;display:flex;flex-direction:column;padding:2mm 3mm;font-size:10.5px;line-height:1.35;}
+.fv-via{height:50%;overflow:hidden;display:flex;flex-direction:column;padding:2mm 3mm 5mm;font-size:10.5px;line-height:1.35;}
 .fv-corte{flex:0 0 0;border-top:1.5px dashed #888;position:relative;}
 .fv-corte span{position:absolute;left:50%;top:-8px;transform:translateX(-50%);background:#fff;padding:0 8px;font-size:9px;color:#777;letter-spacing:1px;text-transform:uppercase;white-space:nowrap;}
 .fv-topo{display:flex;align-items:center;gap:10px;border-bottom:1.5px solid #111;padding-bottom:5px;}
@@ -257,16 +257,21 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
 .fv-cli{display:grid;grid-template-columns:1.4fr 1fr;gap:1px 14px;padding:5px 0;border-bottom:1px solid #bbb;}
 .fv-cli b{font-weight:700;}
 .fv-cli span{color:#555;}
-.fv-itens-wrap{display:grid;grid-template-columns:1fr;gap:0 14px;flex:0 1 auto;min-height:0;overflow:hidden;}
+.fv-itens-wrap{display:grid;grid-template-columns:1fr;gap:0 12px;flex:0 1 auto;min-height:30mm;overflow:hidden;margin-top:8px;align-content:start;}
 .fv-itens-wrap.fv-2col{grid-template-columns:1fr 1fr;}
-.fv-itens{width:100%;border-collapse:collapse;margin-top:4px;font-size:inherit;align-self:start;}
-.fv-itens th{text-align:left;font-size:8.5px;text-transform:uppercase;letter-spacing:1px;color:#555;border-bottom:1px solid #111;padding:2px 0;}
-.fv-itens td{padding:1.5px 0;font-weight:600;font-size:inherit;}
-.fv-itens .q{width:12%;}
-.fv-itens .p{width:16%;color:#444;font-weight:500;}
-.fv-itens .v{width:18%;text-align:right;font-variant-numeric:tabular-nums;}
+.fv-itens{width:100%;border-collapse:collapse;font-size:inherit;align-self:start;border:1px solid #c9ced8;}
+.fv-itens thead th{background:#eef1f6;color:#2b3445;font-size:8.3px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;padding:4px 7px;border-bottom:1px solid #c9ced8;text-align:left;}
+.fv-itens tbody td{padding:3.5px 7px;font-size:inherit;font-weight:400;color:#111;border-bottom:1px solid #e4e7ee;background:none;}
+.fv-itens tbody tr:nth-child(even) td{background:#f8f9fb;}
+.fv-itens tbody tr:last-child td{border-bottom:none;}
+.fv-itens .q{width:9%;text-align:center;font-weight:700;}
+.fv-itens .e{font-weight:600;}
+.fv-itens .p{width:18%;text-align:center;color:#444;}
+.fv-itens .v{width:20%;text-align:right;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.fv-itens thead .q,.fv-itens thead .p{text-align:center;}
+.fv-itens thead .v{text-align:right;}
 .fv-topo,.fv-cli,.fv-resumo,.fv-termos,.fv-ass{flex-shrink:0;}
-.fv-resumo{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-top:8px;padding-top:5px;border-top:1px solid #bbb;}
+.fv-resumo{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;margin-top:14px;padding-top:5px;border-top:1px solid #bbb;}
 .fv-resumo-dados{line-height:1.5;}
 .fv-resumo-dados span{color:#555;}
 .fv-total{text-align:right;line-height:1.4;}
@@ -274,12 +279,12 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
 .fv-total-final{font-size:15px;font-weight:700;font-family:Arial,sans-serif;font-variant-numeric:tabular-nums;}
 .fv-termos{font-size:8.3px;line-height:1.3;color:#222;margin-top:4px;text-align:justify;}
 .fv-termos b{font-size:8.6px;}
-/* Espaço da assinatura: 40px quando sobra folha (poucos itens), encolhe até 22px quando a lista é longa */
-.fv-ass-espaco{flex:0 100 40px;min-height:22px;}
+/* Espaço da assinatura: cresce até 26mm quando sobra folha (poucos itens), encolhe até 22px quando a lista é longa */
+.fv-ass-espaco{flex:1 100 40px;min-height:22px;max-height:26mm;}
 .fv-ass{display:flex;gap:40px;padding:0 6px;font-size:8.5px;color:#444;text-align:center;}
 .fv-ass div{flex:1;border-top:1px solid #111;padding-top:2px;}
 .fv-folha.fv-compacta .fv-via{font-size:9.5px;line-height:1.25;}
-.fv-folha.fv-compacta .fv-itens td{padding:0;line-height:1.2;}
+.fv-folha.fv-compacta .fv-itens tbody td{padding:1.5px 7px;line-height:1.2;}
 
 /* ========================================
    MOBILE — Reorganização para celular
@@ -3161,11 +3166,11 @@ function viaFaturaHTML(c,cl,tpl,via){
   const per=p=>p==='diario'?'Diário':p==='semanal'?'Semanal':p==='quinzenal'?'Quinzenal':'Mensal';
   const linhas=(c.itens||[]).map(it=>{
     const e=eq.find(x=>x.id==it.equipId)||{nome:'—'};
-    return`<tr><td class="q">${it.qty}</td><td>${e.nome}</td><td class="p">${per(it.periodo)}${(it.qtdPeriodo||1)>1?' ×'+it.qtdPeriodo:''}</td><td class="v">R$ ${fmtMoney(it.qty*it.valor*(it.qtdPeriodo||1))}</td></tr>`;
+    return`<tr><td class="q">${it.qty}</td><td class="e">${e.nome}</td><td class="p">${per(it.periodo)}${(it.qtdPeriodo||1)>1?' ×'+it.qtdPeriodo:''}</td><td class="v">R$ ${fmtMoney(it.qty*it.valor*(it.qtdPeriodo||1))}</td></tr>`;
   });
   // Muitos itens: divide em duas colunas pra caber na meia folha
   const duas=linhas.length>12,meio=Math.ceil(linhas.length/2);
-  const tabela=ls=>`<table class="fv-itens" contenteditable="true"><thead><tr><th class="q">Qtd.</th><th>Equipamento</th><th class="p">Período</th><th class="v">Valor</th></tr></thead><tbody>${ls.join('')}</tbody></table>`;
+  const tabela=ls=>`<table class="fv-itens" contenteditable="true"><thead><tr><th class="q">Qtd.</th><th class="e">Equipamento</th><th class="p">Período</th><th class="v">Total</th></tr></thead><tbody>${ls.join('')}</tbody></table>`;
   const fimTxt=c.fim||(()=>{const d=fimContratoReal(c);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;})();
   const docLbl=(cl.doc||'').replace(/\D/g,'').length>11?'CNPJ':'CPF';
   const subtotal=(c.total||0)+(c.desconto||0)-(c.frete||0);
