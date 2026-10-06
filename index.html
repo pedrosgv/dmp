@@ -494,6 +494,47 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
 #sync-status.error{color:var(--danger);border-color:var(--danger);}
 .logout-btn{background:transparent;color:#7e8aa8;border:1px solid #24304f;padding:6px 12px;border-radius:7px;font-size:12px;cursor:pointer;transition:background .18s ease,color .18s ease,border-color .18s ease;}
 .logout-btn:hover{background:#1c2742;color:#fff;border-color:#33415f;}
+
+/* ===== EXTRATO DO CLIENTE — tela ===== */
+.ex-cards{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;}
+.ex-cards>div{flex:1;min-width:108px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:8px 10px;}
+.ex-cards span{display:block;font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px;}
+.ex-cards b{font-size:15px;}
+.ex-grp{border:1px solid var(--border);border-radius:9px;margin-bottom:10px;overflow:hidden;}
+.ex-grp-top{display:flex;justify-content:space-between;align-items:center;gap:8px;background:var(--surface2);padding:8px 10px;font-size:13px;flex-wrap:wrap;}
+.ex-grp-nome{display:flex;align-items:center;gap:7px;cursor:pointer;font-size:13px;}
+.ex-grp-tot{color:var(--muted);font-size:12px;white-space:nowrap;}
+.ex-grp-top input,.ex-row input{pointer-events:none;flex:0 0 auto;width:16px;height:16px;accent-color:var(--accent);}
+.ex-row{display:flex;align-items:center;gap:9px;padding:8px 10px;border-top:1px solid var(--border);cursor:pointer;}
+.ex-row:hover{background:var(--surface2);}
+.ex-row-txt{flex:1;min-width:0;font-size:13px;}
+.ex-row-mes{color:var(--muted);font-size:12px;}
+.ex-row-sub{display:block;font-size:11.5px;color:var(--muted);}
+.ex-row-val{font-weight:700;white-space:nowrap;font-variant-numeric:tabular-nums;}
+
+/* ===== EXTRATO DO CLIENTE — folha A4 pra imprimir ===== */
+.ex-doc{background:#fff;color:#111;font-family:'DM Sans',Arial,sans-serif;width:190mm;margin:0 auto;font-size:11px;line-height:1.4;}
+.ex-topo{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;border-bottom:2px solid #0d1117;padding-bottom:8px;margin-bottom:10px;}
+.ex-logo{height:46px;}
+.ex-emp{font-size:9.5px;color:#444;line-height:1.35;}
+.ex-emp b{font-size:13px;color:#0d1117;display:block;font-family:'IBM Plex Sans',Arial,sans-serif;margin-bottom:2px;}
+.ex-tit{text-align:right;flex:0 0 auto;}
+.ex-t1{font-family:'IBM Plex Sans',Arial,sans-serif;font-size:12.5px;font-weight:700;letter-spacing:1px;text-transform:uppercase;}
+.ex-t2{font-size:9.5px;color:#666;margin-top:2px;}
+.ex-cli{border:1px solid #d7dae2;border-radius:4px;padding:7px 10px;margin-bottom:10px;}
+.ex-cli b{font-size:12.5px;}
+.ex-obra{margin-bottom:9px;}
+.ex-obra-tit{background:#eef1f7;border-left:3px solid #0d1117;padding:4px 8px;font-weight:700;font-size:11px;display:flex;justify-content:space-between;gap:12px;}
+.ex-tab{width:100%;border-collapse:collapse;font-size:10.5px;}
+.ex-tab th{text-align:left;font-size:8.5px;text-transform:uppercase;letter-spacing:.7px;color:#777;border-bottom:1px solid #c9ccd6;padding:3px 6px;font-weight:600;}
+.ex-tab td{padding:3px 6px;border-bottom:1px solid #eee;}
+.ex-tab tr{page-break-inside:avoid;break-inside:avoid;}
+.ex-obra-tit{page-break-after:avoid;break-after:avoid;}
+.ex-tab .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
+.ex-tab .ex-atr{color:#c0392b;font-weight:600;}
+.ex-total{display:flex;justify-content:flex-end;gap:20px;border-top:2px solid #0d1117;margin-top:8px;padding-top:7px;font-size:12px;}
+.ex-total b{font-size:14px;}
+.ex-pe{margin-top:12px;border-top:1px solid #d7dae2;padding-top:7px;font-size:9.5px;color:#555;display:flex;justify-content:space-between;gap:14px;}
 </style>
 </head>
 <body>
@@ -1306,6 +1347,28 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
   </div>
 </div>
 
+<!-- EXTRATO DO CLIENTE -->
+<div class="modal-overlay" id="modal-extrato">
+  <div class="modal" style="max-width:820px;width:100%">
+    <div class="modal-header">
+      <h3 id="extrato-title">Extrato</h3>
+      <div style="display:flex;gap:7px;align-items:center">
+        <button class="btn btn-primary btn-sm" onclick="imprimirExtrato()">🖨 Imprimir extrato</button>
+        <button class="modal-close" onclick="closeModal('modal-extrato')">×</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <p style="color:var(--muted);font-size:13px;margin:0 0 12px">Tudo o que o cliente deve, de todos os contratos, agrupado pelo local da obra. O valor recebido é distribuído nas cobranças marcadas.</p>
+      <div id="extrato-resumo"></div>
+      <div id="extrato-lista"></div>
+      <div id="extrato-pag"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" onclick="closeModal('modal-extrato')">Fechar</button></div>
+  </div>
+</div>
+<!-- folha do extrato, fora da tela, só pra impressão -->
+<div style="position:fixed;left:0;top:0;width:0;height:0;overflow:hidden" aria-hidden="true"><div id="extrato-print" style="width:200mm"></div></div>
+
 <!-- ESCOLHER DIA DA RETIRADA -->
 <div class="modal-overlay" id="modal-data-retirada">
   <div class="modal" style="max-width:440px">
@@ -1812,8 +1875,8 @@ function renderClientes(q=''){
   if(q)cl=cl.filter(c=>c.nome.toLowerCase().includes(q.toLowerCase())||(c.doc||'').includes(q)||(c.tel||'').includes(q)||(c.telefones||[]).some(t=>(t.num||'').includes(q)));
   const tb=document.getElementById('clientes-tbody');
   if(!cl.length){tb.innerHTML='<tr><td colspan="7"><div class="empty-state"><p>Nenhum cliente cadastrado</p></div></td></tr>';return;}
-  const ct=DB.get('contratos');
-  tb.innerHTML=cl.map(c=>{const nc=ct.filter(x=>x.clienteId===c.id).length;const ab=totalDebitoAberto(c);return`<tr><td><b>${c.nome}</b></td><td>${c.doc||'—'}</td><td>${c.tel||'—'}${(c.telefones||[]).map(t=>`<br><span style="font-size:11px;color:var(--muted)">${t.num}${t.rot?` · ${t.rot}`:''}</span>`).join('')}</td><td>${c.email||'—'}</td><td><span class="badge badge-blue">${nc}</span></td><td>${ab>0?`<b style="color:var(--danger)">R$ ${fmtMoney(ab)}</b>`:'<span style="color:var(--muted)">—</span>'}</td><td style="white-space:nowrap"><button class="btn btn-warning btn-sm" onclick="abrirDebitos(${c.id})">Débitos</button> <button class="btn btn-ghost btn-sm" onclick="editCliente(${c.id})">Editar</button> <button class="btn btn-danger btn-sm" onclick="delClienteConfirm(${c.id})">Excluir</button></td></tr>`;}).join('');
+  const ct=DB.get('contratos'),abCt=abertoPorCliente();
+  tb.innerHTML=cl.map(c=>{const nc=ct.filter(x=>x.clienteId===c.id).length;const ab=totalDebitoAberto(c),oc=abCt[c.id];return`<tr><td><b>${c.nome}</b></td><td>${c.doc||'—'}</td><td>${c.tel||'—'}${(c.telefones||[]).map(t=>`<br><span style="font-size:11px;color:var(--muted)">${t.num}${t.rot?` · ${t.rot}`:''}</span>`).join('')}</td><td>${c.email||'—'}</td><td><span class="badge badge-blue">${nc}</span>${oc?`<br><span style="font-size:11px;color:var(--danger);white-space:nowrap">R$ ${fmtMoney(oc.valor)} em aberto</span>`:''}</td><td>${ab>0?`<b style="color:var(--danger)">R$ ${fmtMoney(ab)}</b>`:'<span style="color:var(--muted)">—</span>'}</td><td style="white-space:nowrap"><button class="btn btn-info btn-sm" onclick="abrirExtrato(${c.id})">Extrato</button> <button class="btn btn-warning btn-sm" onclick="abrirDebitos(${c.id})">Débitos</button> <button class="btn btn-ghost btn-sm" onclick="editCliente(${c.id})">Editar</button> <button class="btn btn-danger btn-sm" onclick="delClienteConfirm(${c.id})">Excluir</button></td></tr>`;}).join('');
 }
 // ---- TELEFONES ADICIONAIS ({num, rot}) — o campo TELEFONE principal continua sendo o `tel` ----
 let _telsExtra=[];
@@ -3758,6 +3821,195 @@ function quitarMes(){
   const ref=_pagMesRef||inicioYM(c);
   const saldo=pgSaldoMes(c,ref);if(saldo<=0)return;
   _pagSalvar(pgLista(c).concat([{id:Date.now(),valor:saldo,data:hoje(),mesRef:ref}]));
+}
+
+// ========================
+// EXTRATO DO CLIENTE — tudo que o cliente deve, de todos os contratos, agrupado por obra.
+// Não cria campo novo: lê os mesmos ciclos do Financeiro + os débitos manuais do cliente.
+// ========================
+let _exClienteId=null,_exSel=null,_exPgSeq=0;
+function exHojeYM(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;}
+// Ciclos (cobranças) que JÁ apareceram no Financeiro: mês de exibição até o mês atual.
+// Contrato encerrado (finalizado / marcado p/ retirada) não cobra ciclo que começa depois do
+// fim real — senão um contrato encerrado em agosto seguiria gerando cobrança em set, out, nov...
+function ciclosAteHoje(c,hojeYM){
+  if(!c.inicio||c.status==='cancelado')return [];
+  const startYM=inicioYM(c),N=c.avulso?1:PROJ_MESES,off=PAGA_OFFSET[c.pagaEm||'mesmo']||0;
+  const fimR=(c.status==='finalizado'||c.paraRetirada)?fimContratoReal(c):null;
+  const res=[];
+  for(let i=0;i<N;i++){
+    const refYM=addMesYM(startYM,i);
+    if(addMesYM(refYM,off)>hojeYM)break;
+    const p=periodoCiclo(c,i);
+    if(fimR&&i>0&&p.ini>=fimR)break;
+    res.push({c,i,refYM,periodo:p.label,venc:vencimentoCiclo(c,i)});
+  }
+  return res;
+}
+// Total em aberto de cada cliente (usado na lista de Clientes) — {clienteId:{n,valor}}
+function abertoPorCliente(){
+  const hojeYM=exHojeYM(),out={};
+  DB.get('contratos').forEach(c=>{
+    ciclosAteHoje(c,hojeYM).forEach(x=>{
+      const s=pgSaldoMes(c,x.refYM);if(s<=0)return;
+      const o=out[c.clienteId]=out[c.clienteId]||{n:0,valor:0};o.n++;o.valor+=s;
+    });
+  });
+  return out;
+}
+// Uma linha por cobrança em aberto do cliente (+ os débitos manuais, no fim)
+function cobrancasAbertas(clienteId){
+  const hj=new Date();hj.setHours(0,0,0,0);
+  const hojeYM=exHojeYM(),out=[];
+  DB.get('contratos').filter(c=>c.clienteId===clienteId).forEach(c=>{
+    ciclosAteHoje(c,hojeYM).forEach(x=>{
+      const saldo=pgSaldoMes(c,x.refYM);if(saldo<=0)return;
+      out.push({tipo:'ciclo',chave:'c'+c.id+'|'+x.refYM,c,refYM:x.refYM,periodo:x.periodo,venc:x.venc,
+        valor:c.total||0,receb:pgRecebidoMes(c,x.refYM),saldo,obra:(c.local||'').trim(),atrasado:x.venc<hj});
+    });
+  });
+  const cl=DB.get('clientes').find(x=>x.id===clienteId);
+  ((cl&&cl.debitos)||[]).filter(d=>!d.pago&&(Number(d.valor)||0)>0).forEach(d=>{
+    out.push({tipo:'debito',chave:'d'+d.id,debito:d,desc:d.desc||'',data:d.data||'',obra:'',
+      valor:Number(d.valor)||0,receb:0,saldo:Number(d.valor)||0,atrasado:false});
+  });
+  return out;
+}
+function exOrdena(a,b){
+  const t=l=>l.venc?l.venc.getTime():(l.data?new Date(l.data+'T12:00:00').getTime():8e15);
+  return t(a)-t(b)||((a.c?a.c.id:0)-(b.c?b.c.id:0));
+}
+const exSoma=ls=>ls.reduce((s,l)=>s+l.saldo,0);
+// Agrupa por obra (o Local do contrato). Grafias diferentes do mesmo lugar caem em grupos
+// diferentes — é o limite de agrupar por texto livre.
+function exGrupos(linhas){
+  const g=[],idx={};
+  linhas.filter(l=>l.tipo==='ciclo').sort(exOrdena).forEach(l=>{
+    const k=l.obra.toLowerCase().replace(/\s+/g,' ')||'__sem__';
+    if(idx[k]===undefined){idx[k]=g.length;g.push({chave:k,nome:l.obra||'Sem obra informada',linhas:[]});}
+    g[idx[k]].linhas.push(l);
+  });
+  const deb=linhas.filter(l=>l.tipo==='debito').sort(exOrdena);
+  if(deb.length)g.push({chave:'__deb__',nome:'Débitos manuais',debitos:true,linhas:deb});
+  return g;
+}
+function abrirExtrato(id){_exClienteId=id;_exSel=null;renderExtratoModal();openModal('modal-extrato');}
+function exLinhas(){return cobrancasAbertas(_exClienteId);}
+function renderExtratoModal(){
+  const cl=DB.get('clientes').find(x=>x.id===_exClienteId);if(!cl)return;
+  const ls=exLinhas();
+  if(!_exSel)_exSel=new Set(ls.map(l=>l.chave));
+  else{const vivos=new Set(ls.map(l=>l.chave));_exSel=new Set(Array.from(_exSel).filter(k=>vivos.has(k)));}
+  document.getElementById('extrato-title').textContent='Extrato — '+cl.nome;
+  const grupos=exGrupos(ls),sel=ls.filter(l=>_exSel.has(l.chave));
+  const totAberto=exSoma(ls),vencido=exSoma(ls.filter(l=>l.atrasado)),totSel=exSoma(sel);
+  const nObras=grupos.filter(g=>!g.debitos).length;
+  document.getElementById('extrato-resumo').innerHTML=`<div class="ex-cards">
+    <div><span>Em aberto</span><b>R$ ${fmtMoney(totAberto)}</b></div>
+    <div><span>Vencido</span><b style="color:${vencido>0?'var(--danger)':'var(--text)'}">R$ ${fmtMoney(vencido)}</b></div>
+    <div><span>Cobranças</span><b>${ls.length}</b></div>
+    <div><span>Obras</span><b>${nObras}</b></div></div>`;
+  const fd=d=>`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+  const linhaHtml=l=>{
+    const mc=_exSel.has(l.chave)?' checked':'';
+    if(l.tipo==='debito')return`<div class="ex-row" onclick="exToggle('${l.chave}')"><input type="checkbox"${mc}>
+      <span class="ex-row-txt"><b>${l.desc||'(sem descrição)'}</b><span class="ex-row-sub">lançado em ${l.data?fmtData(l.data):'—'} · controle manual</span></span>
+      <span class="ex-row-val">R$ ${fmtMoney(l.saldo)}</span></div>`;
+    const parcial=l.receb>0?` · já pago R$ ${fmtMoney(l.receb)} de R$ ${fmtMoney(l.valor)}`:'';
+    return`<div class="ex-row" onclick="exToggle('${l.chave}')"><input type="checkbox"${mc}>
+      <span class="ex-row-txt"><b>Contrato #${l.c.id}</b> <span class="ex-row-mes">${nomeMesYM(l.refYM)}</span>
+      <span class="ex-row-sub">${l.periodo} · vence ${l.atrasado?`<b style="color:var(--danger)">${fd(l.venc)} (vencido)</b>`:fd(l.venc)}${parcial}</span></span>
+      <span class="ex-row-val">R$ ${fmtMoney(l.saldo)}</span></div>`;
+  };
+  document.getElementById('extrato-lista').innerHTML=grupos.length?grupos.map((g,gi)=>`<div class="ex-grp">
+    <div class="ex-grp-top"><span class="ex-grp-nome" onclick="exToggleGrupo(${gi})"><input type="checkbox"${g.linhas.every(l=>_exSel.has(l.chave))?' checked':''}> <b>${g.debitos?'Débitos manuais':g.nome}</b></span>
+    <span class="ex-grp-tot">${g.linhas.length} cobrança(s) · R$ ${fmtMoney(exSoma(g.linhas))}</span></div>
+    ${g.linhas.map(linhaHtml).join('')}</div>`).join(''):'<div class="empty-state"><p>Nada em aberto para este cliente.</p></div>';
+  document.getElementById('extrato-pag').innerHTML=!ls.length?'':`<hr class="divider">
+    <div class="lbl-f" style="margin-bottom:8px">Recebimento</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px;font-size:13px">
+      <span style="flex:1;min-width:180px">Marcado: <b>${sel.length}</b> cobrança(s) · <b style="color:var(--accent)">R$ ${fmtMoney(totSel)}</b></span>
+      <button class="btn btn-ghost btn-sm" onclick="exSelTodas(true)">Marcar todas</button>
+      <button class="btn btn-ghost btn-sm" onclick="exSelTodas(false)">Desmarcar</button></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end">
+      <div class="form-group"><label>VALOR RECEBIDO (R$)</label><input id="ex-valor" type="number" step="0.01" min="0" placeholder="${fmtMoney(totSel)}"></div>
+      <div class="form-group"><label>DATA</label><input id="ex-data" type="date" value="${hoje()}"></div>
+      <button class="btn btn-primary" onclick="exLancar()">Lançar</button></div>
+    <button class="btn btn-success" style="margin-top:10px;width:100%;justify-content:center" onclick="exQuitarSel()">Quitar as marcadas (R$ ${fmtMoney(totSel)})</button>
+    <p style="font-size:12px;color:var(--muted);margin:10px 0 0">O valor é distribuído nas cobranças marcadas, da mais antiga para a mais nova. Débito manual só é quitado inteiro.</p>`;
+}
+function exToggle(k){if(_exSel.has(k))_exSel.delete(k);else _exSel.add(k);renderExtratoModal();}
+function exToggleGrupo(gi){
+  const g=exGrupos(exLinhas())[gi];if(!g)return;
+  const todas=g.linhas.every(l=>_exSel.has(l.chave));
+  g.linhas.forEach(l=>{if(todas)_exSel.delete(l.chave);else _exSel.add(l.chave);});
+  renderExtratoModal();
+}
+function exSelTodas(v){const ls=exLinhas();_exSel=v?new Set(ls.map(l=>l.chave)):new Set();renderExtratoModal();}
+function exSelOrdenada(){return exLinhas().filter(l=>_exSel.has(l.chave)).sort(exOrdena);}
+function exLancar(){
+  const v=Number(document.getElementById('ex-valor').value),d=document.getElementById('ex-data').value||hoje();
+  const sel=exSelOrdenada(),tot=exSoma(sel);
+  if(!sel.length){alert('Marque as cobranças que este pagamento quita.');return;}
+  if(!v||v<=0){alert('Informe o valor recebido.');return;}
+  if(v>tot+0.004){confirmar(`O valor recebido (R$ ${fmtMoney(v)}) é maior que o total marcado (R$ ${fmtMoney(tot)}). Vou quitar tudo o que está marcado; a sobra de R$ ${fmtMoney(v-tot)} não será lançada. Continuar?`,()=>exAplicar(tot,d,sel));return;}
+  exAplicar(v,d,sel);
+}
+function exQuitarSel(){
+  const sel=exSelOrdenada(),tot=exSoma(sel);
+  if(!sel.length||tot<=0){alert('Marque as cobranças que este pagamento quita.');return;}
+  confirmar(`Quitar ${sel.length} cobrança(s) marcada(s), no total de R$ ${fmtMoney(tot)}?`,()=>exAplicar(tot,hoje(),sel));
+}
+// Distribui um valor recebido nas cobranças marcadas (mais antigas primeiro).
+// Grava TODOS os contratos num único DB.set — nunca um set por contrato.
+function exAplicar(valor,data,sel){
+  let resto=Math.round((Number(valor)||0)*100)/100;
+  const novos={},debs=[];
+  sel.forEach(l=>{
+    if(resto<=0.004)return;
+    if(l.tipo==='ciclo'){
+      const usa=Math.round(Math.min(l.saldo,resto)*100)/100;
+      if(usa<=0)return;
+      (novos[l.c.id]=novos[l.c.id]||[]).push({id:Date.now()+(++_exPgSeq),valor:usa,data,mesRef:l.refYM});
+      resto=Math.round((resto-usa)*100)/100;
+    }else if(l.saldo<=resto+0.004){debs.push(l.debito.id);resto=Math.round((resto-l.saldo)*100)/100;}
+  });
+  if(!Object.keys(novos).length&&!debs.length){alert('O valor informado não cobre nenhuma das cobranças marcadas.');return;}
+  if(Object.keys(novos).length)DB.set('contratos',DB.get('contratos').map(c=>novos[c.id]?{...c,pagamentos:pgLista(c).concat(novos[c.id])}:c));
+  if(debs.length)DB.set('clientes',DB.get('clientes').map(x=>x.id===_exClienteId?{...x,debitos:(x.debitos||[]).map(d=>debs.includes(d.id)?{...d,pago:true}:d)}:x));
+  renderExtratoModal();renderClientes();rerenderPaginaAtiva();
+}
+// Extrato em A4 pra imprimir/enviar: só o que está marcado na tela
+function imprimirExtrato(){
+  const cl=DB.get('clientes').find(x=>x.id===_exClienteId);if(!cl)return;
+  const ls=exSelOrdenada();
+  if(!ls.length){alert('Marque as cobranças que devem sair no extrato.');return;}
+  const tpl=DB.getObj('template',TPL_DEF),grupos=exGrupos(ls);
+  const fd=d=>`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+  const total=exSoma(ls),vencido=exSoma(ls.filter(l=>l.atrasado));
+  const docLbl=(cl.doc||'').replace(/\D/g,'').length>11?'CNPJ':'CPF';
+  document.getElementById('extrato-print').innerHTML=`<div class="ex-doc">
+    <div class="ex-topo">
+      <div style="display:flex;gap:10px;align-items:center">
+        <img class="ex-logo" src="${LOGO_EMPRESA}" alt="">
+        <div class="ex-emp"><b>${tpl.empresaNome||''}</b>${tpl.empresaDoc?`CNPJ: ${tpl.empresaDoc}<br>`:''}${tpl.empresaEnd?`${tpl.empresaEnd}<br>`:''}${tpl.empresaTel||''}</div>
+      </div>
+      <div class="ex-tit"><div class="ex-t1">Extrato de cobrança</div>
+        <div class="ex-t2">Emitido em ${fd(new Date())}</div>
+        <div class="ex-t2">${ls.length} cobrança(s) em aberto</div></div>
+    </div>
+    <div class="ex-cli"><b>${cl.nome||'—'}</b>${cl.doc?` · ${docLbl}: ${cl.doc}`:''}${cl.tel?` · ${cl.tel}`:''}${cl.end?`<br>${cl.end}`:''}</div>
+    ${grupos.map(g=>`<div class="ex-obra">
+      <div class="ex-obra-tit"><span>${g.debitos?'Débitos (controle manual)':'Obra: '+g.nome}</span><span>R$ ${fmtMoney(exSoma(g.linhas))}</span></div>
+      <table class="ex-tab"><thead><tr><th>${g.debitos?'Descrição':'Contrato'}</th><th>${g.debitos?'Lançado em':'Período'}</th><th>${g.debitos?'':'Vencimento'}</th><th class="num">Valor</th><th class="num">Já pago</th><th class="num">Em aberto</th></tr></thead>
+      <tbody>${g.linhas.map(l=>g.debitos
+        ?`<tr><td>${l.desc||'—'}</td><td>${l.data?fmtData(l.data):'—'}</td><td></td><td class="num">R$ ${fmtMoney(l.valor)}</td><td class="num">—</td><td class="num">R$ ${fmtMoney(l.saldo)}</td></tr>`
+        :`<tr><td>#${l.c.id}</td><td>${l.periodo}</td><td class="${l.atrasado?'ex-atr':''}">${fd(l.venc)}${l.atrasado?' (vencido)':''}</td><td class="num">R$ ${fmtMoney(l.valor)}</td><td class="num">${l.receb>0?'R$ '+fmtMoney(l.receb):'—'}</td><td class="num">R$ ${fmtMoney(l.saldo)}</td></tr>`).join('')}</tbody></table>
+    </div>`).join('')}
+    <div class="ex-total"><span>Vencido: <b style="color:#c0392b">R$ ${fmtMoney(vencido)}</b></span><span>Total em aberto: <b>R$ ${fmtMoney(total)}</b></span></div>
+    <div class="ex-pe"><div>${tpl.faturaComentarios||'Em caso de dúvida sobre este extrato, entre em contato conosco.'}</div><div style="text-align:right">${tpl.empresaTel?`<b>${tpl.empresaTel}</b><br>`:''}${tpl.faturaInfo||''}</div></div>
+  </div>`;
+  imprimirDoc('extrato-print','Extrato '+(cl.nome||'cliente'));
 }
 
 // ========================
