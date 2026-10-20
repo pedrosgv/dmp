@@ -535,6 +535,13 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
 .ex-total{display:flex;justify-content:flex-end;gap:20px;border-top:2px solid #0d1117;margin-top:8px;padding-top:7px;font-size:12px;}
 .ex-total b{font-size:14px;}
 .ex-pe{margin-top:12px;border-top:1px solid #d7dae2;padding-top:7px;font-size:9.5px;color:#555;display:flex;justify-content:space-between;gap:14px;}
+/* ===== RELATÓRIO DO FINANCEIRO — impressão (imprimirFinanceiro); usa a base do extrato (.ex-) ===== */
+.fr-tab td{vertical-align:top;font-size:9.5px;line-height:1.35;}
+.fr-tab .fr-sub{display:block;color:#666;font-size:8.5px;}
+.fr-tab .fr-atr{color:#c0392b;font-weight:600;}
+.fr-tab .fr-dia td{background:#eef1f7;border-left:3px solid #0d1117;font-weight:700;font-size:10px;}
+.fr-tab .fr-enc td{background:#dfe3ec;font-weight:800;font-size:9px;letter-spacing:.6px;text-transform:uppercase;color:#555;}
+.fr-filtro{font-size:10px;color:#555;margin:-4px 0 8px;}
 </style>
 </head>
 <body>
@@ -908,7 +915,7 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
 <!-- FINANCEIRO -->
 <div class="page" id="page-financeiro">
   <div class="page-top">
-    <div class="page-header"><h2>Financeiro</h2><p>Receitas e pagamentos</p></div>
+    <div class="page-header" style="display:flex;justify-content:space-between;align-items:center;gap:10px"><div><h2>Financeiro</h2><p>Receitas e pagamentos</p></div><button class="btn btn-ghost btn-sm" style="flex:0 0 auto;white-space:nowrap" onclick="imprimirFinanceiro()" title="Imprime a lista do mês selecionado (respeita a busca e o filtro)">🖨 Imprimir lista</button></div>
     <div class="search-row" style="flex-wrap:wrap">
       <button class="btn btn-ghost btn-sm" onclick="finNavMes(1)" title="Mês anterior">←</button>
       <select class="search-input" id="fin-mes-seletor" style="flex:0 0 auto;max-width:190px" onchange="renderFinanceiro()"></select>
@@ -1367,7 +1374,7 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
   </div>
 </div>
 <!-- folha do extrato, fora da tela, só pra impressão -->
-<div style="position:fixed;left:0;top:0;width:0;height:0;overflow:hidden" aria-hidden="true"><div id="extrato-print" style="width:200mm"></div></div>
+<div style="position:fixed;left:0;top:0;width:0;height:0;overflow:hidden" aria-hidden="true"><div id="extrato-print" style="width:200mm"></div><div id="fin-print" style="width:200mm"></div></div>
 
 <!-- ESCOLHER DIA DA RETIRADA -->
 <div class="modal-overlay" id="modal-data-retirada">
@@ -3587,6 +3594,7 @@ function renderFinanceiro(){
     if(filtroF==='retirada')return !!x.c.paraRetirada;
     return true;
   });
+  _finLista={mes:mesAtual,linhas:visiveis};
   // Totais do mês (com base nos ciclos projetados)
   const total=linhas.reduce((s,x)=>s+pgRecebidoMes(x.c,x.refYM),0);
   const rec=linhas.filter(x=>x.c.status!=='cancelado').reduce((s,x)=>s+pgSaldoMes(x.c,x.refYM),0);
@@ -3637,6 +3645,64 @@ function renderFinanceiro(){
   let html=gruposHtml(emAndamento);
   if(encerrados.length)html+=`<tr><td colspan="8" style="background:#eef1f7;border-top:2px solid var(--border);font-weight:800;color:var(--muted);padding:11px 12px;font-size:12px;letter-spacing:.6px;text-transform:uppercase">Finalizados / cancelados <span style="font-weight:400;text-transform:none;letter-spacing:0">· ${encerrados.length} cobrança(s)</span></td></tr>`+gruposHtml(encerrados);
   tb.innerHTML=html;
+}
+let _finLista=null; // última lista desenhada no Financeiro (mês + busca + filtro) — é ela que sai no relatório
+// Relatório do mês em A4: sai exatamente o que a lista mostra (respeita busca e filtro)
+function imprimirFinanceiro(){
+  renderFinanceiro(); // garante a lista em dia com os dados
+  const L=_finLista;
+  if(!L||!L.linhas.length){alert('Nenhuma cobrança na lista para imprimir.');return;}
+  const cls=DB.get('clientes'),eq=DB.get('equipamentos'),fil=DB.get('filiais'),tpl=DB.getObj('template',TPL_DEF);
+  const hj=new Date();hj.setHours(0,0,0,0);
+  const fd=d=>`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+  const [Y,M]=L.mes.split('-'),nomeMes=MESES_NOMES[parseInt(M)-1];
+  const PER={diario:['dia','dias'],semanal:['semana','semanas'],quinzenal:['quinzena','quinzenas'],mensal:['mês','meses']};
+  const ST={ativo:'Ativo',pendente:'Pendente (entrega)',finalizado:'Finalizado',cancelado:'Cancelado'};
+  const tot={valor:0,receb:0,saldo:0,venc:0};
+  const linha=x=>{
+    const c=x.c,cl=cls.find(y=>y.id===c.clienteId)||{};
+    const receb=pgRecebidoMes(c,x.refYM),saldo=pgSaldoMes(c,x.refYM),quit=pgQuitadoMes(c,x.refYM),canc=c.status==='cancelado';
+    const v=new Date(x.venc);v.setHours(0,0,0,0);const atr=!quit&&!canc&&v<hj;
+    if(!canc){tot.valor+=c.total||0;tot.saldo+=saldo;}tot.receb+=receb;if(atr)tot.venc+=saldo;
+    const f=c.filialId?fil.find(y=>y.id===c.filialId):null;
+    const tags=[ST[c.status]||c.status,c.avulso?'Avulsa':'Recorrente',c.paraRetirada?'P/ retirada'+(c.dataRetirada?' em '+fmtData(c.dataRetirada):''):'',c.semEstoque?'Sem estoque':''].filter(Boolean).join(' · ');
+    const tels=[cl.tel,...(cl.telefones||[]).map(t=>t.num?t.num+(t.rot?` (${t.rot})`:''):'')].filter(Boolean).join(' · ');
+    const docLbl=(cl.doc||'').replace(/\D/g,'').length>11?'CNPJ':'CPF';
+    const itens=(c.itens||[]).map(it=>{const e=eq.find(y=>y.id==it.equipId)||{nome:'—'},n=it.qtdPeriodo||1;return`<div>${it.qty}× ${e.nome} <span style="color:#666">· ${n} ${(PER[it.periodo]||PER.mensal)[n===1?0:1]} · R$&nbsp;${fmtMoney(it.qty*it.valor*n)}${it.terc?` · ${it.terc} terceirizado(s)`:''}</span></div>`;}).join('')||'—';
+    const pgs=pgLista(c).filter(p=>(p.mesRef||inicioYM(c))===x.refYM);
+    const pagSt=canc?'<b style="color:#777">Cancelado</b>':quit?'<b style="color:#1e7e34">Pago</b>':receb>0?'<b style="color:#1d4ed8">Parcial</b>':'<b style="color:#c2410c">Pendente</b>';
+    return`<tr><td><b>#${c.id}</b><span class="fr-sub">${tags}</span><span class="fr-sub">Início ${fmtData(c.inicio)}${c.fim?` · fim ${fmtData(c.fim)}`:''}</span>${f?`<span class="fr-sub">${f.nome}</span>`:''}</td>
+      <td><b>${cl.nome||'—'}</b>${cl.doc?`<span class="fr-sub">${docLbl}: ${cl.doc}</span>`:''}${tels?`<span class="fr-sub">${tels}</span>`:''}${c.local?`<span class="fr-sub">Obra: ${c.local}</span>`:''}</td>
+      <td>${itens}</td>
+      <td>${x.periodo}<span class="fr-sub${atr?' fr-atr':''}">Vence ${fd(x.venc)}${atr?' (vencido)':''}</span></td>
+      <td class="num"><b>R$ ${fmtMoney(c.total)}</b>${(c.desconto||0)>0?`<span class="fr-sub">desc. R$ ${fmtMoney(c.desconto)}</span>`:''}${(c.frete||0)!==0?`<span class="fr-sub">frete R$ ${fmtMoney(c.frete)}</span>`:''}</td>
+      <td>${pagSt}${c.pagamento?`<span class="fr-sub">${c.pagamento}</span>`:''}${receb>0&&!quit?`<span class="fr-sub">recebido R$ ${fmtMoney(receb)}</span><span class="fr-sub">falta R$ ${fmtMoney(saldo)}</span>`:''}${pgs.map(p=>`<span class="fr-sub">R$&nbsp;${fmtMoney(p.valor)} em ${fmtData(p.data)}</span>`).join('')}</td></tr>`;
+  };
+  // Mesma ordem da tela: por dia do ciclo; finalizados/cancelados no fim
+  const grupos=arr=>{const g={};arr.forEach(x=>{const d=parseInt(x.c.inicio.slice(8,10))||1;(g[d]=g[d]||[]).push(x);});
+    return Object.keys(g).map(Number).sort((a,b)=>a-b).map(d=>`<tr class="fr-dia"><td colspan="6">${d} de ${nomeMes} de ${Y} <span style="font-weight:400;color:#666">· ${g[d].length} cobrança(s)</span></td></tr>`+g[d].sort((a,b)=>a.c.id-b.c.id).map(linha).join('')).join('');};
+  const enc=x=>x.c.status==='finalizado'||x.c.status==='cancelado';
+  const encs=L.linhas.filter(enc);
+  const corpo=grupos(L.linhas.filter(x=>!enc(x)))+(encs.length?`<tr class="fr-enc"><td colspan="6">Finalizados / cancelados · ${encs.length} cobrança(s)</td></tr>`+grupos(encs):'');
+  const fsel=document.getElementById('fin-filtro'),busca=(document.getElementById('fin-busca')?.value||'').trim();
+  const filtroTxt=[fsel&&fsel.value!=='todos'?fsel.options[fsel.selectedIndex].text:'',busca?`busca "${busca}"`:''].filter(Boolean).join(' · ');
+  document.getElementById('fin-print').innerHTML=`<div class="ex-doc">
+    <div class="ex-topo">
+      <div style="display:flex;gap:10px;align-items:center">
+        <img class="ex-logo" src="${LOGO_EMPRESA}" alt="">
+        <div class="ex-emp"><b>${tpl.empresaNome||''}</b>${tpl.empresaDoc?`CNPJ: ${tpl.empresaDoc}<br>`:''}${tpl.empresaEnd?`${tpl.empresaEnd}<br>`:''}${tpl.empresaTel||''}</div>
+      </div>
+      <div class="ex-tit"><div class="ex-t1">Relatório financeiro</div>
+        <div class="ex-t2" style="font-size:11px;color:#111;font-weight:600">${nomeMes} / ${Y}</div>
+        <div class="ex-t2">Emitido em ${fd(new Date())}</div>
+        <div class="ex-t2">${L.linhas.length} cobrança(s)</div></div>
+    </div>
+    ${filtroTxt?`<div class="fr-filtro">Filtro aplicado: ${filtroTxt}</div>`:''}
+    <table class="ex-tab fr-tab"><thead><tr><th style="width:15%">Contrato</th><th style="width:24%">Cliente / obra</th><th>Equipamentos</th><th style="width:14%">Período</th><th class="num" style="width:10%">Valor</th><th style="width:13%">Pagamento</th></tr></thead>
+    <tbody>${corpo}</tbody></table>
+    <div class="ex-total"><span>Valor: <b>R$ ${fmtMoney(tot.valor)}</b></span><span>Recebido: <b style="color:#1e7e34">R$ ${fmtMoney(tot.receb)}</b></span><span>Vencido: <b style="color:#c0392b">R$ ${fmtMoney(tot.venc)}</b></span><span>A receber: <b>R$ ${fmtMoney(tot.saldo)}</b></span></div>
+  </div>`;
+  imprimirDoc('fin-print',`Financeiro ${nomeMes} ${Y}`);
 }
 // ---- Pagamentos (parcial / à vista) ----
 function pgLista(c){return Array.isArray(c.pagamentos)?c.pagamentos:[];}
