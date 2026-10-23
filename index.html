@@ -527,10 +527,9 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
 .ex-obra-tit{background:#eef1f7;border-left:3px solid #0d1117;padding:4px 8px;font-weight:700;font-size:11px;display:flex;justify-content:space-between;gap:12px;}
 .ex-tab{width:100%;border-collapse:collapse;font-size:10.5px;}
 .ex-tab th{text-align:left;font-size:8.5px;text-transform:uppercase;letter-spacing:.7px;color:#777;border-bottom:1px solid #c9ccd6;padding:3px 6px;font-weight:600;}
-.ex-tab td{padding:3px 6px;border-bottom:1px solid #eee;}
+.ex-tab td{padding:3px 6px;border-bottom:1px solid #eee;vertical-align:top;}
 .ex-tab tr{page-break-inside:avoid;break-inside:avoid;}
 .ex-obra-tit{page-break-after:avoid;break-after:avoid;}
-.ex-equip{padding:4px 8px;font-size:10px;color:#333;border-bottom:1px solid #eee;page-break-inside:avoid;break-inside:avoid;}
 .ex-tab .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;}
 .ex-tab .ex-atr{color:#c0392b;font-weight:600;}
 .ex-total{display:flex;justify-content:flex-end;gap:20px;border-top:2px solid #0d1117;margin-top:8px;padding-top:7px;font-size:12px;}
@@ -4054,9 +4053,9 @@ function imprimirExtrato(){
   const tpl=DB.getObj('template',TPL_DEF),grupos=exGrupos(ls),eq=DB.get('equipamentos');
   const fd=d=>`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
   const total=exSoma(ls),vencido=exSoma(ls.filter(l=>l.atrasado));
-  // Equipamentos de cada contrato da obra — uma vez por contrato, não a cada mês cobrado
-  const equipsObra=g=>{const vistos=[];g.linhas.forEach(l=>{if(!vistos.includes(l.c))vistos.push(l.c);});
-    return vistos.map(c=>`<div><b>Equipamentos do contrato #${c.id}:</b> ${(c.itens||[]).map(it=>`${it.qty}× ${(eq.find(y=>y.id==it.equipId)||{nome:'—'}).nome}`).join(' · ')||'—'}</div>`).join('');};
+  // Equipamentos no mesmo formato do relatório do Financeiro (sem a nota de terceirizado — o extrato vai pro cliente)
+  const PER={diario:['dia','dias'],semanal:['semana','semanas'],quinzenal:['quinzena','quinzenas'],mensal:['mês','meses']};
+  const itensHtml=c=>(c.itens||[]).map(it=>{const e=eq.find(y=>y.id==it.equipId)||{nome:'—'},n=it.qtdPeriodo||1;return`<div>${it.qty}× ${e.nome} <span style="color:#666">· ${n} ${(PER[it.periodo]||PER.mensal)[n===1?0:1]} · R$&nbsp;${fmtMoney(it.qty*it.valor*n)}</span></div>`;}).join('')||'—';
   const docLbl=(cl.doc||'').replace(/\D/g,'').length>11?'CNPJ':'CPF';
   document.getElementById('extrato-print').innerHTML=`<div class="ex-doc">
     <div class="ex-topo">
@@ -4071,11 +4070,10 @@ function imprimirExtrato(){
     <div class="ex-cli"><b>${cl.nome||'—'}</b>${cl.doc?` · ${docLbl}: ${cl.doc}`:''}${cl.tel?` · ${cl.tel}`:''}${cl.end?`<br>${cl.end}`:''}</div>
     ${grupos.map(g=>`<div class="ex-obra">
       <div class="ex-obra-tit"><span>${g.debitos?'Débitos (controle manual)':'Obra: '+g.nome}</span><span>R$ ${fmtMoney(exSoma(g.linhas))}</span></div>
-      ${g.debitos?'':`<div class="ex-equip">${equipsObra(g)}</div>`}
-      <table class="ex-tab"><thead><tr><th>${g.debitos?'Descrição':'Contrato'}</th><th>${g.debitos?'Lançado em':'Período'}</th><th>${g.debitos?'':'Vencimento'}</th><th class="num">Valor</th><th class="num">Já pago</th><th class="num">Em aberto</th></tr></thead>
+      <table class="ex-tab"><thead><tr><th>${g.debitos?'Descrição':'Contrato'}</th>${g.debitos?'':'<th>Equipamentos</th>'}<th>${g.debitos?'Lançado em':'Período'}</th><th>${g.debitos?'':'Vencimento'}</th><th class="num">Valor</th><th class="num">Já pago</th><th class="num">Em aberto</th></tr></thead>
       <tbody>${g.linhas.map(l=>g.debitos
         ?`<tr><td>${l.desc||'—'}</td><td>${l.data?fmtData(l.data):'—'}</td><td></td><td class="num">R$ ${fmtMoney(l.valor)}</td><td class="num">—</td><td class="num">R$ ${fmtMoney(l.saldo)}</td></tr>`
-        :`<tr><td>#${l.c.id}</td><td>${l.periodo}</td><td class="${l.atrasado?'ex-atr':''}">${fd(l.venc)}${l.atrasado?' (vencido)':''}</td><td class="num">R$ ${fmtMoney(l.valor)}</td><td class="num">${l.receb>0?'R$ '+fmtMoney(l.receb):'—'}</td><td class="num">R$ ${fmtMoney(l.saldo)}</td></tr>`).join('')}</tbody></table>
+        :`<tr><td>#${l.c.id}</td><td>${itensHtml(l.c)}</td><td>${l.periodo}</td><td class="${l.atrasado?'ex-atr':''}">${fd(l.venc)}${l.atrasado?' (vencido)':''}</td><td class="num">R$ ${fmtMoney(l.valor)}</td><td class="num">${l.receb>0?'R$ '+fmtMoney(l.receb):'—'}</td><td class="num">R$ ${fmtMoney(l.saldo)}</td></tr>`).join('')}</tbody></table>
     </div>`).join('')}
     <div class="ex-total"><span>Vencido: <b style="color:#c0392b">R$ ${fmtMoney(vencido)}</b></span><span>Total em aberto: <b>R$ ${fmtMoney(total)}</b></span></div>
     <div class="ex-pe"><div>${tpl.faturaComentarios||'Em caso de dúvida sobre este extrato, entre em contato conosco.'}</div><div style="text-align:right">${tpl.empresaTel?`<b>${tpl.empresaTel}</b><br>`:''}${tpl.faturaInfo||''}</div></div>
