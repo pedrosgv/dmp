@@ -1386,7 +1386,7 @@ tbody tr[data-vencimento="proximo"] td{background:rgba(245,158,11,.05)!important
   </div>
 </div>
 <!-- folha do extrato, fora da tela, só pra impressão -->
-<div style="position:fixed;left:0;top:0;width:0;height:0;overflow:hidden" aria-hidden="true"><div id="extrato-print" style="width:200mm"></div><div id="fin-print" style="width:200mm"></div></div>
+<div style="position:fixed;left:0;top:0;width:0;height:0;overflow:hidden" aria-hidden="true"><div id="extrato-print" style="width:200mm"></div><div id="fin-print" style="width:200mm"></div><div id="contratos-print" style="width:200mm"></div></div>
 
 <!-- ESCOLHER DIA DA RETIRADA -->
 <div class="modal-overlay" id="modal-data-retirada">
@@ -1895,7 +1895,7 @@ function renderClientes(q=''){
   const tb=document.getElementById('clientes-tbody');
   if(!cl.length){tb.innerHTML='<tr><td colspan="7"><div class="empty-state"><p>Nenhum cliente cadastrado</p></div></td></tr>';return;}
   const ct=DB.get('contratos'),abCt=abertoPorCliente();
-  tb.innerHTML=cl.map(c=>{const nc=ct.filter(x=>x.clienteId===c.id).length;const ab=totalDebitoAberto(c),oc=abCt[c.id];return`<tr><td><b>${c.nome}</b></td><td>${c.doc||'—'}</td><td>${c.tel||'—'}${(c.telefones||[]).map(t=>`<br><span style="font-size:11px;color:var(--muted)">${t.num}${t.rot?` · ${t.rot}`:''}</span>`).join('')}</td><td>${c.email||'—'}</td><td><span class="badge badge-blue">${nc}</span>${oc?`<br><span style="font-size:11px;color:var(--danger);white-space:nowrap">R$ ${fmtMoney(oc.valor)} em aberto</span>`:''}</td><td>${ab>0?`<b style="color:var(--danger)">R$ ${fmtMoney(ab)}</b>`:'<span style="color:var(--muted)">—</span>'}</td><td style="white-space:nowrap"><button class="btn btn-info btn-sm" onclick="abrirExtrato(${c.id})">Extrato</button> <button class="btn btn-warning btn-sm" onclick="abrirDebitos(${c.id})">Débitos</button> <button class="btn btn-ghost btn-sm" onclick="editCliente(${c.id})">Editar</button> <button class="btn btn-danger btn-sm" onclick="delClienteConfirm(${c.id})">Excluir</button></td></tr>`;}).join('');
+  tb.innerHTML=cl.map(c=>{const nc=ct.filter(x=>x.clienteId===c.id).length;const ab=totalDebitoAberto(c),oc=abCt[c.id];return`<tr><td><b>${c.nome}</b></td><td>${c.doc||'—'}</td><td>${c.tel||'—'}${(c.telefones||[]).map(t=>`<br><span style="font-size:11px;color:var(--muted)">${t.num}${t.rot?` · ${t.rot}`:''}</span>`).join('')}</td><td>${c.email||'—'}</td><td><span class="badge badge-blue">${nc}</span>${oc?`<br><span style="font-size:11px;color:var(--danger);white-space:nowrap">R$ ${fmtMoney(oc.valor)} em aberto</span>`:''}</td><td>${ab>0?`<b style="color:var(--danger)">R$ ${fmtMoney(ab)}</b>`:'<span style="color:var(--muted)">—</span>'}</td><td style="white-space:nowrap"><button class="btn btn-info btn-sm" onclick="abrirExtrato(${c.id})">Extrato</button> <button class="btn btn-ghost btn-sm" onclick="imprimirContratosCliente(${c.id})" title="Imprime os contratos ativos e pendentes de entrega deste cliente">🖨 Contratos</button> <button class="btn btn-warning btn-sm" onclick="abrirDebitos(${c.id})">Débitos</button> <button class="btn btn-ghost btn-sm" onclick="editCliente(${c.id})">Editar</button> <button class="btn btn-danger btn-sm" onclick="delClienteConfirm(${c.id})">Excluir</button></td></tr>`;}).join('');
 }
 // ---- TELEFONES ADICIONAIS ({num, rot}) — o campo TELEFONE principal continua sendo o `tel` ----
 let _telsExtra=[];
@@ -3738,6 +3738,55 @@ function imprimirFinanceiro(){
     <div class="ex-total"><span>Valor: <b>R$ ${fmtMoney(tot.valor)}</b></span><span>Recebido: <b style="color:#1e7e34">R$ ${fmtMoney(tot.receb)}</b></span><span>Vencido: <b style="color:#c0392b">R$ ${fmtMoney(tot.venc)}</b></span><span>A receber: <b>R$ ${fmtMoney(tot.saldo)}</b></span></div>
   </div>`;
   imprimirDoc('fin-print',`Financeiro ${nomeMes} ${Y}`);
+}
+// Contratos ativos + pendentes de UM cliente (aba Clientes → 🖨 Contratos). Mesmo layout do relatório do
+// Financeiro, mas sem mês: cada contrato mostra o ciclo em que está HOJE (cicloAtual) e o pagamento desse ciclo.
+function imprimirContratosCliente(id){
+  const cl=DB.get('clientes').find(x=>x.id===id);if(!cl)return;
+  const lista=DB.get('contratos').filter(c=>c.clienteId===id&&(c.status==='ativo'||c.status==='pendente')).sort((a,b)=>a.id-b.id);
+  if(!lista.length){alert('Este cliente não tem contratos ativos ou pendentes de entrega no momento.');return;}
+  const eq=DB.get('equipamentos'),fil=DB.get('filiais'),tpl=DB.getObj('template',TPL_DEF);
+  const hj=new Date();hj.setHours(0,0,0,0);
+  const fd=d=>`${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+  const PER={diario:['dia','dias'],semanal:['semana','semanas'],quinzenal:['quinzena','quinzenas'],mensal:['mês','meses']};
+  const ST={ativo:'Ativo',pendente:'Pendente (entrega)'};
+  const tot={valor:0,receb:0,saldo:0,venc:0};
+  const linha=c=>{
+    const ca=cicloAtual(c,hj),i=ca?ca.i:0,refYM=addMesYM(inicioYM(c),i),per=periodoCiclo(c,i),venc=vencimentoCiclo(c,i);
+    const receb=pgRecebidoMes(c,refYM),saldo=pgSaldoMes(c,refYM),quit=pgQuitadoMes(c,refYM);
+    const v=new Date(venc);v.setHours(0,0,0,0);const atr=!quit&&v<hj;
+    tot.valor+=c.total||0;tot.saldo+=saldo;tot.receb+=receb;if(atr)tot.venc+=saldo;
+    const f=c.filialId?fil.find(y=>y.id===c.filialId):null;
+    const tags=[ST[c.status]||c.status,c.avulso?'Avulsa':'Recorrente',c.paraRetirada?'P/ retirada'+(c.dataRetirada?' em '+fmtData(c.dataRetirada):''):'',c.semEstoque?'Sem estoque':''].filter(Boolean).join(' · ');
+    const itens=(c.itens||[]).map(it=>{const e=eq.find(y=>y.id==it.equipId)||{nome:'—'},n=it.qtdPeriodo||1;return`<div>${it.qty}× ${e.nome} <span style="color:#666">· ${n} ${(PER[it.periodo]||PER.mensal)[n===1?0:1]} · R$&nbsp;${fmtMoney(it.qty*it.valor*n)}${it.terc?` · ${it.terc} terceirizado(s)`:''}</span></div>`;}).join('')||'—';
+    const pgs=pgLista(c).filter(p=>(p.mesRef||inicioYM(c))===refYM);
+    const pagSt=quit?'<b style="color:#1e7e34">Pago</b>':receb>0?'<b style="color:#1d4ed8">Parcial</b>':'<b style="color:#c2410c">Pendente</b>';
+    return`<tr><td><b>#${c.id}</b><span class="fr-sub">${tags}</span><span class="fr-sub">Início ${fmtData(c.inicio)}${c.fim?` · fim ${fmtData(c.fim)}`:''}</span>${f?`<span class="fr-sub">${f.nome}</span>`:''}</td>
+      <td>${c.local||'—'}</td>
+      <td>${itens}</td>
+      <td>${per.label}<span class="fr-sub${atr?' fr-atr':''}">Vence ${fd(venc)}${atr?' (vencido)':''}</span></td>
+      <td class="num"><b>R$ ${fmtMoney(c.total)}</b>${(c.desconto||0)>0?`<span class="fr-sub">desc. R$ ${fmtMoney(c.desconto)}</span>`:''}${(c.frete||0)!==0?`<span class="fr-sub">frete R$ ${fmtMoney(c.frete)}</span>`:''}</td>
+      <td>${pagSt}${c.pagamento?`<span class="fr-sub">${c.pagamento}</span>`:''}${receb>0&&!quit?`<span class="fr-sub">recebido R$ ${fmtMoney(receb)}</span><span class="fr-sub">falta R$ ${fmtMoney(saldo)}</span>`:''}${pgs.map(p=>`<span class="fr-sub">R$&nbsp;${fmtMoney(p.valor)} em ${fmtData(p.data)}</span>`).join('')}</td></tr>`;
+  };
+  const corpo=lista.map(linha).join('');
+  const tels=[cl.tel,...(cl.telefones||[]).map(t=>t.num?t.num+(t.rot?` (${t.rot})`:''):'')].filter(Boolean).join(' · ');
+  const docLbl=(cl.doc||'').replace(/\D/g,'').length>11?'CNPJ':'CPF';
+  document.getElementById('contratos-print').innerHTML=`<div class="ex-doc">
+    <div class="ex-topo">
+      <div style="display:flex;gap:10px;align-items:center">
+        <img class="ex-logo" src="${LOGO_EMPRESA}" alt="">
+        <div class="ex-emp"><b>${tpl.empresaNome||''}</b>${tpl.empresaDoc?`CNPJ: ${tpl.empresaDoc}<br>`:''}${tpl.empresaEnd?`${tpl.empresaEnd}<br>`:''}${tpl.empresaTel||''}</div>
+      </div>
+      <div class="ex-tit"><div class="ex-t1">Contratos ativos</div>
+        <div class="ex-t2">Emitido em ${fd(new Date())}</div>
+        <div class="ex-t2">${lista.length} contrato(s)</div></div>
+    </div>
+    <div class="ex-cli"><b>${cl.nome||'—'}</b>${cl.doc?` · ${docLbl}: ${cl.doc}`:''}${tels?` · ${tels}`:''}${cl.end?`<br>${cl.end}`:''}</div>
+    <table class="ex-tab fr-tab"><thead><tr><th style="width:15%">Contrato</th><th style="width:18%">Obra</th><th>Equipamentos</th><th style="width:14%">Período atual</th><th class="num" style="width:10%">Valor</th><th style="width:13%">Pagamento do período</th></tr></thead>
+    <tbody>${corpo}</tbody></table>
+    <div class="ex-total"><span>Valor: <b>R$ ${fmtMoney(tot.valor)}</b></span><span>Recebido: <b style="color:#1e7e34">R$ ${fmtMoney(tot.receb)}</b></span><span>Vencido: <b style="color:#c0392b">R$ ${fmtMoney(tot.venc)}</b></span><span>A receber: <b>R$ ${fmtMoney(tot.saldo)}</b></span></div>
+  </div>`;
+  imprimirDoc('contratos-print','Contratos '+(cl.nome||'cliente'));
 }
 // ---- Pagamentos (parcial / à vista) ----
 function pgLista(c){return Array.isArray(c.pagamentos)?c.pagamentos:[];}
